@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { resolveProjectSkillDiscovery, registerProjectSkillDiscoveryHandler } from "../../src/index.js";
@@ -49,6 +50,36 @@ describe("resources_discover skill path resolution", () => {
     assert.deepStrictEqual(resource, { skillPaths: ["/tmp/global-skills", expectedPath] });
     assert.strictEqual(store.getProjectName(), "demo-repo");
     assert.strictEqual(store.getProjectSkillsDir(), expectedPath);
+  });
+
+  it("returns repo-local project skillPaths from git root", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "hermes-resources-repo-local-"));
+    try {
+      const repo = path.join(tmp, "demo-repo");
+      const nested = path.join(repo, "packages", "app");
+      fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
+      fs.mkdirSync(nested, { recursive: true });
+
+      const store = new SkillStore({
+        globalSkillsDir: "/tmp/global-skills",
+        projectSkillsDir: null,
+        projectName: null,
+        legacySkillsDir: "/tmp/legacy-skills",
+        migrationSentinelPath: "/tmp/.skills-migrated",
+      });
+
+      const resource = resolveProjectSkillDiscovery(store, {
+        projectMemoryMode: "repo-local",
+        projectMemoryDirName: ".pi",
+      }, nested);
+      const expectedPath = path.join(repo, ".pi", "skills");
+
+      assert.deepStrictEqual(resource, { skillPaths: ["/tmp/global-skills", expectedPath] });
+      assert.strictEqual(store.getProjectName(), "demo-repo");
+      assert.strictEqual(store.getProjectSkillsDir(), expectedPath);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 
   it("returns global skill path when cwd is not a project", () => {

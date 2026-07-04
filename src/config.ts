@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { MemoryConfig, MemoryOverflowStrategy, ReviewTransport, SessionSearchVariant, ThinkingLevel } from "./types.js";
+import type { MemoryConfig, MemoryOverflowStrategy, ProjectMemoryMode, ReviewTransport, SessionSearchVariant, ThinkingLevel } from "./types.js";
 import {
   DEFAULT_MEMORY_CHAR_LIMIT,
   DEFAULT_USER_CHAR_LIMIT,
@@ -21,6 +21,7 @@ const MEMORY_OVERFLOW_STRATEGIES: readonly MemoryOverflowStrategy[] = ["auto-con
 const SESSION_SEARCH_VARIANTS: readonly SessionSearchVariant[] = ["legacy", "anchors"];
 const REVIEW_TRANSPORTS: readonly ReviewTransport[] = ["direct", "subprocess"];
 const THINKING_LEVELS: readonly ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
+const PROJECT_MEMORY_MODES: readonly ProjectMemoryMode[] = ["central", "repo-local"];
 
 function isReviewTransport(value: unknown): value is ReviewTransport {
   return typeof value === "string" && REVIEW_TRANSPORTS.includes(value as ReviewTransport);
@@ -36,6 +37,18 @@ function isSessionSearchVariant(value: unknown): value is SessionSearchVariant {
 
 function isThinkingLevel(value: unknown): value is ThinkingLevel {
   return typeof value === "string" && THINKING_LEVELS.includes(value as ThinkingLevel);
+}
+
+function isProjectMemoryMode(value: unknown): value is ProjectMemoryMode {
+  return typeof value === "string" && PROJECT_MEMORY_MODES.includes(value as ProjectMemoryMode);
+}
+
+function normalizeProjectMemoryDirName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "." || trimmed === "..") return null;
+  if (path.isAbsolute(trimmed) || trimmed.includes("/") || trimmed.includes("\\")) return null;
+  return trimmed;
 }
 
 const DEFAULT_CONFIG: MemoryConfig = {
@@ -61,6 +74,8 @@ const DEFAULT_CONFIG: MemoryConfig = {
   consolidationTimeoutMs: DEFAULT_CONSOLIDATION_TIMEOUT_MS,
   nudgeToolCalls: DEFAULT_NUDGE_TOOL_CALLS,
   projectsMemoryDir: DEFAULT_PROJECTS_MEMORY_DIR,
+  projectMemoryMode: "central",
+  projectMemoryDirName: ".pi",
   sessionSearch: { variant: "legacy" },
 };
 
@@ -129,6 +144,9 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): MemoryConfig {
         const normalizedProjectsMemoryDir = normalizeProjectsMemoryDir(parsed.projectsMemoryDir);
         if (normalizedProjectsMemoryDir) config.projectsMemoryDir = normalizedProjectsMemoryDir;
       }
+      if (isProjectMemoryMode(parsed.projectMemoryMode)) config.projectMemoryMode = parsed.projectMemoryMode;
+      const normalizedProjectMemoryDirName = normalizeProjectMemoryDirName(parsed.projectMemoryDirName);
+      if (normalizedProjectMemoryDirName) config.projectMemoryDirName = normalizedProjectMemoryDirName;
       if (
         typeof parsed.sessionSearch === "object" &&
         parsed.sessionSearch !== null &&

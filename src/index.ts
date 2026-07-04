@@ -53,13 +53,23 @@ import { buildPromptContext } from "./prompt-context.js";
 import { migrateLegacyProjectMemoryDirs } from "./project-memory-migration.js";
 import { migrateExtensionRoot } from "./extension-root-migration.js";
 import { AGENT_ROOT } from "./paths.js";
+import type { MemoryConfig } from "./types.js";
+
+type ProjectDiscoveryConfig = Pick<MemoryConfig, "projectMemoryMode" | "projectsMemoryDir" | "projectMemoryDirName">;
 
 export function resolveProjectSkillDiscovery(
   skillStore: SkillStore,
-  projectsMemoryDir: string | undefined,
+  projectConfig: string | ProjectDiscoveryConfig | undefined,
   cwd?: string,
 ): { skillPaths: string[] } {
-  const detected = detectProjectSkills(projectsMemoryDir, cwd);
+  const detectionOptions = typeof projectConfig === "string" || projectConfig === undefined
+    ? projectConfig
+    : {
+        projectMemoryMode: projectConfig.projectMemoryMode,
+        projectsMemoryDir: projectConfig.projectsMemoryDir,
+        projectMemoryDirName: projectConfig.projectMemoryDirName,
+      };
+  const detected = detectProjectSkills(detectionOptions, cwd);
   skillStore.setProjectContext(detected.name, detected.skillsDir);
 
   const skillPaths = [skillStore.getGlobalSkillsDir()];
@@ -71,10 +81,10 @@ export function resolveProjectSkillDiscovery(
 export function registerProjectSkillDiscoveryHandler(
   pi: Pick<ExtensionAPI, "on">,
   skillStore: SkillStore,
-  projectsMemoryDir: string | undefined,
+  projectConfig: string | ProjectDiscoveryConfig | undefined,
 ): void {
   pi.on("resources_discover", async (event, _ctx) => {
-    return resolveProjectSkillDiscovery(skillStore, projectsMemoryDir, (event as { cwd?: string }).cwd);
+    return resolveProjectSkillDiscovery(skillStore, projectConfig, (event as { cwd?: string }).cwd);
   });
 }
 
@@ -98,7 +108,7 @@ export default function (pi: ExtensionAPI) {
   let extensionRootMigrated = false;
 
   const store = new MemoryStore({ ...config, memoryDir: globalDir });
-  const project = detectProject(config.projectsMemoryDir);
+  const project = detectProject(config);
   const projectName = project.name ?? "";
   const skillStore = new SkillStore({
     globalSkillsDir: path.join(globalDir, "skills"),
@@ -112,7 +122,7 @@ export default function (pi: ExtensionAPI) {
   const sessionsDir = path.join(agentRoot, "sessions");
 
   const refreshSkillProjectContext = (cwd?: string) => {
-    const resource = resolveProjectSkillDiscovery(skillStore, config.projectsMemoryDir, cwd);
+    const resource = resolveProjectSkillDiscovery(skillStore, config, cwd);
     return {
       name: skillStore.getProjectName(),
       skillsDir: skillStore.getProjectSkillsDir(),
@@ -168,7 +178,7 @@ export default function (pi: ExtensionAPI) {
     });
   });
 
-  registerProjectSkillDiscoveryHandler(pi, skillStore, config.projectsMemoryDir);
+  registerProjectSkillDiscoveryHandler(pi, skillStore, config);
 
   // ── 2. Inject memory policy by default; legacy mode keeps full frozen memory blocks ──
   pi.on("before_agent_start", async (event, _ctx) => {

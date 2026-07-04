@@ -34,6 +34,8 @@ describe("loadConfig", () => {
     assert.strictEqual(config.failureInjectionMaxAgeDays, 7);
     assert.strictEqual(config.failureInjectionMaxEntries, 5);
     assert.strictEqual(config.projectsMemoryDir, "projects-memory");
+    assert.strictEqual(config.projectMemoryMode, "central");
+    assert.strictEqual(config.projectMemoryDirName, ".pi");
     assert.deepStrictEqual(config.sessionSearch, { variant: "legacy" });
     assert.strictEqual(config.llmModelOverride, undefined);
     assert.strictEqual(config.llmThinkingOverride, undefined);
@@ -54,6 +56,8 @@ describe("loadConfig", () => {
       failureInjectionMaxAgeDays: 30,
       failureInjectionMaxEntries: 2,
       projectsMemoryDir: "my-memory",
+      projectMemoryMode: "repo-local",
+      projectMemoryDirName: ".project-pi",
       llmModelOverride: " openrouter/deepseek/deepseek-v4-flash ",
       llmThinkingOverride: "minimal",
     }));
@@ -69,6 +73,8 @@ describe("loadConfig", () => {
     assert.strictEqual(config.failureInjectionMaxAgeDays, 30);
     assert.strictEqual(config.failureInjectionMaxEntries, 2);
     assert.strictEqual(config.projectsMemoryDir, "my-memory");
+    assert.strictEqual(config.projectMemoryMode, "repo-local");
+    assert.strictEqual(config.projectMemoryDirName, ".project-pi");
     assert.strictEqual(config.llmModelOverride, "openrouter/deepseek/deepseek-v4-flash");
     assert.strictEqual(config.llmThinkingOverride, "minimal");
     // Unset values use defaults
@@ -90,6 +96,8 @@ describe("loadConfig", () => {
     assert.strictEqual(config.failureInjectionMaxAgeDays, 7);
     assert.strictEqual(config.failureInjectionMaxEntries, 5);
     assert.strictEqual(config.projectsMemoryDir, "projects-memory");
+    assert.strictEqual(config.projectMemoryMode, "central");
+    assert.strictEqual(config.projectMemoryDirName, ".pi");
     assert.strictEqual(config.llmModelOverride, undefined);
     assert.strictEqual(config.llmThinkingOverride, undefined);
   });
@@ -134,6 +142,30 @@ describe("loadConfig", () => {
     }));
     config = loadConfig(TEST_CONFIG_PATH);
     assert.strictEqual(config.projectsMemoryDir, "projects-memory");
+  });
+
+  it("accepts valid project memory mode and repo-local dir name", () => {
+    fs.mkdirSync(path.dirname(TEST_CONFIG_PATH), { recursive: true });
+    fs.writeFileSync(TEST_CONFIG_PATH, JSON.stringify({
+      projectMemoryMode: "repo-local",
+      projectMemoryDirName: " .codex-pi ",
+    }));
+
+    const config = loadConfig(TEST_CONFIG_PATH);
+    assert.strictEqual(config.projectMemoryMode, "repo-local");
+    assert.strictEqual(config.projectMemoryDirName, ".codex-pi");
+  });
+
+  it("ignores invalid project memory mode and repo-local dir name", () => {
+    fs.mkdirSync(path.dirname(TEST_CONFIG_PATH), { recursive: true });
+    fs.writeFileSync(TEST_CONFIG_PATH, JSON.stringify({
+      projectMemoryMode: "repo",
+      projectMemoryDirName: "../.pi",
+    }));
+
+    const config = loadConfig(TEST_CONFIG_PATH);
+    assert.strictEqual(config.projectMemoryMode, "central");
+    assert.strictEqual(config.projectMemoryDirName, ".pi");
   });
 
   it("handles partial config with all boolean overrides", () => {
