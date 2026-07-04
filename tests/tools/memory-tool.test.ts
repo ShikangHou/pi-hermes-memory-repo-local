@@ -267,6 +267,103 @@ describe("registerMemoryTool", () => {
     assert.strictEqual(results[0].content, 'Project entry');
   });
 
+  it("maps canonical workspace scope to the active project store", async () => {
+    let capturedResult: any;
+    const mockPi = {
+      registerTool: (def: any) => {
+        capturedResult = def;
+      },
+    } as unknown as ExtensionAPI;
+
+    const addTargets: string[] = [];
+    const mockProjectStore = {
+      add: (target: string) => {
+        addTargets.push(target);
+        return {
+          success: true,
+          target,
+          entries: ["Workspace entry"],
+          usage: "2% — 20/5000 chars",
+          entry_count: 1,
+          message: "Entry added.",
+        };
+      },
+    } as unknown as MemoryStore;
+
+    registerMemoryTool(mockPi, {} as MemoryStore, mockProjectStore, dbManager, "workspace-a");
+    const result = await capturedResult.execute(
+      "tc-1",
+      { action: "add", scope: "workspace", target: "memory", content: "Workspace entry" },
+      undefined as any,
+      undefined as any,
+      undefined as any,
+    );
+
+    const parsed = JSON.parse(result.content[0].text);
+    assert.strictEqual(parsed.target, "memory");
+    assert.deepStrictEqual(addTargets, ["memory"]);
+
+    const results = getMemories(dbManager, { project: "workspace-a", target: "memory" });
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].content, "Workspace entry");
+  });
+
+  it("rejects workspace user memory", async () => {
+    let capturedResult: any;
+    const mockPi = {
+      registerTool: (def: any) => {
+        capturedResult = def;
+      },
+    } as unknown as ExtensionAPI;
+
+    registerMemoryTool(mockPi, {} as MemoryStore, {} as MemoryStore, dbManager, "workspace-a");
+    const result = await capturedResult.execute(
+      "tc-1",
+      { action: "add", scope: "workspace", target: "user", content: "Workspace user fact" },
+      undefined as any,
+      undefined as any,
+      undefined as any,
+    );
+
+    const parsed = JSON.parse(result.content[0].text);
+    assert.strictEqual(parsed.success, false);
+    assert.match(parsed.error, /Workspace user memory is not supported/);
+  });
+
+  it("syncs workspace failure memory into the workspace scope", async () => {
+    let capturedResult: any;
+    const mockPi = {
+      registerTool: (def: any) => {
+        capturedResult = def;
+      },
+    } as unknown as ExtensionAPI;
+
+    const mockProjectStore = {
+      addFailure: () => ({
+        success: true,
+        target: "failure",
+        entries: ["Workspace failure"],
+        usage: "2% — 20/5000 chars",
+        entry_count: 1,
+        message: "Failure memory saved.",
+      }),
+    } as unknown as MemoryStore;
+
+    registerMemoryTool(mockPi, {} as MemoryStore, mockProjectStore, dbManager, "workspace-a");
+    await capturedResult.execute(
+      "tc-1",
+      { action: "add", scope: "workspace", target: "failure", content: "Use pnpm here", category: "correction" },
+      undefined as any,
+      undefined as any,
+      undefined as any,
+    );
+
+    const results = getMemories(dbManager, { project: "workspace-a", target: "failure" });
+    assert.strictEqual(results.length, 1);
+    assert.match(results[0].content, /Use pnpm here/);
+    assert.strictEqual(results[0].category, "correction");
+  });
+
   it("returns a warning instead of failing when SQLite sync errors", async () => {
     let capturedResult: any;
     const mockPi = {

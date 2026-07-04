@@ -53,34 +53,48 @@ function formatMemoryToolText(result: MemoryResult): string {
   return JSON.stringify(result);
 }
 
-function sqliteProjectFor(rawTarget: "memory" | "user" | "project" | "failure", projectName?: string | null): string | null | undefined {
-  if (rawTarget === "project") return projectName?.trim() || null;
-  if (rawTarget === "memory") return null;
-  if (rawTarget === "user") return null;
-  if (rawTarget === "failure") return null;
-  return undefined;
+type MemoryToolTarget = "memory" | "user" | "project" | "failure";
+type MemoryToolScope = "global" | "workspace" | "project";
+
+interface ResolvedMemoryRoute {
+  scope: "global" | "workspace";
+  target: "memory" | "user" | "failure";
+  sqliteProject: string | null;
+  legacyProjectTarget: boolean;
 }
 
-function sqliteTargetFor(rawTarget: "memory" | "user" | "project" | "failure"): "memory" | "user" | "failure" {
-  if (rawTarget === "project") return "memory";
-  return rawTarget;
+function normalizeMemoryRoute(
+  rawTarget: MemoryToolTarget,
+  rawScope: MemoryToolScope | undefined,
+  projectName?: string | null,
+): ResolvedMemoryRoute {
+  const scope = rawTarget === "project"
+    ? "workspace"
+    : rawScope === "project"
+      ? "workspace"
+      : rawScope ?? "global";
+  const target = rawTarget === "project" ? "memory" : rawTarget;
+  const sqliteProject = scope === "workspace" ? projectName?.trim() || null : null;
+
+  return {
+    scope,
+    target,
+    sqliteProject,
+    legacyProjectTarget: rawTarget === "project",
+  };
 }
 
 async function syncAddToSqlite(
-  rawTarget: "memory" | "user" | "project" | "failure",
+  route: ResolvedMemoryRoute,
   content: string,
   category: MemoryCategory | undefined,
   failureReason: string | undefined,
   dbManager: DatabaseManager | null,
-  projectName?: string | null,
 ): Promise<string | null> {
   if (!dbManager) return null;
 
   try {
-    const sqliteTarget = sqliteTargetFor(rawTarget);
-    const sqliteProject = sqliteProjectFor(rawTarget, projectName);
-
-    if (rawTarget === "failure") {
+    if (route.target === "failure") {
       const failureCategory = category ?? "failure";
       syncMemoryEntry(dbManager, {
         content: formatFailureMemoryContent(content, {
@@ -88,7 +102,7 @@ async function syncAddToSqlite(
           failureReason,
         }),
         target: "failure",
-        project: sqliteProject ?? null,
+        project: route.sqliteProject,
         category: failureCategory,
         failureReason,
       });
@@ -97,8 +111,8 @@ async function syncAddToSqlite(
 
     syncMemoryEntry(dbManager, {
       content,
-      target: sqliteTarget,
-      project: sqliteProject ?? null,
+      target: route.target,
+      project: route.sqliteProject,
     });
     return null;
   } catch (err) {
@@ -107,21 +121,18 @@ async function syncAddToSqlite(
 }
 
 async function syncReplaceToSqlite(
-  rawTarget: "memory" | "user" | "project" | "failure",
+  route: ResolvedMemoryRoute,
   oldText: string,
   newContent: string,
   dbManager: DatabaseManager | null,
-  projectName?: string | null,
 ): Promise<string | null> {
   if (!dbManager) return null;
 
   try {
-    const sqliteTarget = sqliteTargetFor(rawTarget);
-    const sqliteProject = sqliteProjectFor(rawTarget, projectName);
     const syncResult = replaceSyncedMemories(dbManager, oldText, {
       content: newContent,
-      target: sqliteTarget,
-      project: sqliteProject,
+      target: route.target,
+      project: route.sqliteProject,
     });
 
     if (syncResult.matched === 0) {
@@ -135,19 +146,16 @@ async function syncReplaceToSqlite(
 }
 
 async function syncRemoveFromSqlite(
-  rawTarget: "memory" | "user" | "project" | "failure",
+  route: ResolvedMemoryRoute,
   oldText: string,
   dbManager: DatabaseManager | null,
-  projectName?: string | null,
 ): Promise<string | null> {
   if (!dbManager) return null;
 
   try {
-    const sqliteTarget = sqliteTargetFor(rawTarget);
-    const sqliteProject = sqliteProjectFor(rawTarget, projectName);
     const syncResult = removeSyncedMemories(dbManager, oldText, {
-      target: sqliteTarget,
-      project: sqliteProject,
+      target: route.target,
+      project: route.sqliteProject,
     });
 
     if (syncResult.matched === 0) {
@@ -161,22 +169,18 @@ async function syncRemoveFromSqlite(
 }
 
 async function syncEvictionsFromSqlite(
-  rawTarget: "memory" | "user" | "project" | "failure",
+  route: ResolvedMemoryRoute,
   evictedEntries: string[] | undefined,
   dbManager: DatabaseManager | null,
-  projectName?: string | null,
 ): Promise<void> {
   if (!dbManager) return;
   if (!evictedEntries || evictedEntries.length === 0) return;
 
-  const sqliteTarget = sqliteTargetFor(rawTarget);
-  const sqliteProject = sqliteProjectFor(rawTarget, projectName);
-
   for (const entry of evictedEntries) {
     try {
       removeExactSyncedMemories(dbManager, entry, {
-        target: sqliteTarget,
-        project: sqliteProject,
+        target: route.target,
+        project: route.sqliteProject,
       });
     } catch {
       // FIFO already updated the Markdown source of truth. SQLite is only a
@@ -200,14 +204,17 @@ export function registerMemoryTool(
       "Save or manage persistent memory that survives across sessions",
     promptGuidelines: [
       "Use the memory tool proactively when the user corrects you, shares a preference, or reveals personal details worth remembering.",
-      "Use the memory tool when you discover environment facts, project conventions, or reusable patterns useful in future sessions.",
-      "Use target='project' for repository-specific facts; in repo-local project memory mode these are written under the Git root .pi directory.",
+      "Use the memory tool when you discover environment facts, workspace conventions, or reusable patterns useful in future sessions.",
+      "Use scope='workspace' for repository- or workspace-specific facts; legacy target='project' is accepted as an alias.",
       "Do NOT use memory for temporary task state, TODO items, or session progress — only for durable, cross-session facts.",
       "Use target='failure' with category to save what didn't work (failures, corrections, insights).",
     ],
     parameters: Type.Object({
       action: StringEnum(["add", "replace", "remove"] as const),
       target: StringEnum(["memory", "user", "project", "failure"] as const),
+      scope: Type.Optional(StringEnum(["global", "workspace", "project"] as const, {
+        description: "Canonical scope for this memory. Use 'global' for Global Base and 'workspace' for Current Workspace Overlay. Legacy 'project' is accepted as an alias for 'workspace'.",
+      })),
       content: Type.Optional(
         Type.String({ description: "Entry content for add/replace" })
       ),
@@ -227,20 +234,34 @@ export function registerMemoryTool(
       ),
     }),
     async execute(toolCallId, params, signal, onUpdate, ctx) {
-      const { action, target: rawTarget, content, old_text, category, failure_reason } = params;
+      const { action, target: rawTarget, scope: rawScope, content, old_text, category, failure_reason } = params as {
+        action: "add" | "replace" | "remove";
+        target: MemoryToolTarget;
+        scope?: MemoryToolScope;
+        content?: string;
+        old_text?: string;
+        category?: MemoryCategory;
+        failure_reason?: string;
+      };
+      const route = normalizeMemoryRoute(rawTarget, rawScope, projectName);
 
-      // Route 'project' to projectStore using the normal MEMORY.md target.
-      const target = rawTarget === "project" ? "memory" : rawTarget as "memory" | "user" | "failure";
-      const activeStore = rawTarget === "project" ? projectStore : store;
+      const activeStore = route.scope === "workspace" ? projectStore : store;
 
-      if (rawTarget === "project" && !projectStore) {
+      if (route.scope === "workspace" && !projectStore) {
         return {
-          content: [{ type: "text", text: JSON.stringify({ success: false, error: "Project memory is not available (no project detected)." }) }],
+          content: [{ type: "text", text: JSON.stringify({ success: false, error: "Workspace memory is not available (no workspace detected)." }) }],
           details: {},
         };
       }
 
-      // After the guard above, activeStore is guaranteed non-null when rawTarget === 'project'
+      if (route.scope === "workspace" && route.target === "user") {
+        const error = { success: false, error: "Workspace user memory is not supported. Use scope='global', target='user' for user profile facts." };
+        return {
+          content: [{ type: "text", text: JSON.stringify(error) }],
+          details: error,
+        };
+      }
+
       const store_ = activeStore!;
 
       let result: MemoryResult;
@@ -269,13 +290,13 @@ export function registerMemoryTool(
               failureReason: failure_reason,
             });
             if (result.success) {
-              syncWarning = await syncAddToSqlite(rawTarget, content, memoryCategory, failure_reason, dbManager, projectName);
+              syncWarning = await syncAddToSqlite(route, content, memoryCategory, failure_reason, dbManager);
             }
           } else {
-            result = await store_.add(target, content);
+            result = await store_.add(route.target, content);
             if (result.success) {
-              await syncEvictionsFromSqlite(rawTarget, result.evicted_entries, dbManager, projectName);
-              syncWarning = await syncAddToSqlite(rawTarget, content, undefined, undefined, dbManager, projectName);
+              await syncEvictionsFromSqlite(route, result.evicted_entries, dbManager);
+              syncWarning = await syncAddToSqlite(route, content, undefined, undefined, dbManager);
             }
           }
           break;
@@ -309,9 +330,9 @@ export function registerMemoryTool(
               details: {},
             };
           }
-          result = await store_.replace(target, old_text, content);
+          result = await store_.replace(route.target, old_text, content);
           if (result.success) {
-            syncWarning = await syncReplaceToSqlite(rawTarget, old_text, content, dbManager, projectName);
+            syncWarning = await syncReplaceToSqlite(route, old_text, content, dbManager);
           }
           break;
 
@@ -330,9 +351,9 @@ export function registerMemoryTool(
               details: {},
             };
           }
-          result = await store_.remove(target, old_text);
+          result = await store_.remove(route.target, old_text);
           if (result.success) {
-            syncWarning = await syncRemoveFromSqlite(rawTarget, old_text, dbManager, projectName);
+            syncWarning = await syncRemoveFromSqlite(route, old_text, dbManager);
           }
           break;
 
@@ -347,11 +368,10 @@ export function registerMemoryTool(
         result = appendSyncWarning(result, syncWarning);
       }
 
-      // Tag project results so the caller knows the scope
-      if (rawTarget === "project" && result.success) {
+      if (route.scope === "workspace" && result.success) {
         result = {
           ...result,
-          target: "project",
+          target: route.legacyProjectTarget ? "project" : route.target,
         };
       }
 

@@ -41,4 +41,55 @@ describe('registerMemorySearchTool', () => {
 
     dbManager.close();
   });
+
+  it("defaults scope='all' to global plus current workspace only", async () => {
+    const dbManager = makeDbManager();
+    addMemory(dbManager, "shared auth convention", "memory", "current-workspace");
+    addMemory(dbManager, "shared auth global preference", "memory", null);
+    addMemory(dbManager, "shared auth other workspace", "memory", "other-workspace");
+
+    let captured: any;
+    const mockPi = {
+      registerTool: (def: any) => {
+        captured = def;
+      },
+    } as any;
+
+    registerMemorySearchTool(mockPi, dbManager, "current-workspace");
+
+    const result = await captured.execute("tc-1", { query: "shared auth", target: "memory" });
+
+    assert.strictEqual(result.details.success, true);
+    assert.strictEqual(result.details.count, 2);
+    assert.match(result.content[0].text, /current-workspace/);
+    assert.match(result.content[0].text, /global preference/);
+    assert.doesNotMatch(result.content[0].text, /other workspace/);
+
+    dbManager.close();
+  });
+
+  it("supports explicit workspace and global scopes", async () => {
+    const dbManager = makeDbManager();
+    addMemory(dbManager, "workspace scoped build note", "memory", "workspace-a");
+    addMemory(dbManager, "global scoped build note", "memory", null);
+
+    let captured: any;
+    const mockPi = {
+      registerTool: (def: any) => {
+        captured = def;
+      },
+    } as any;
+
+    registerMemorySearchTool(mockPi, dbManager, "workspace-a");
+
+    const workspaceResult = await captured.execute("tc-1", { query: "scoped build", scope: "workspace" });
+    assert.match(workspaceResult.content[0].text, /workspace scoped/);
+    assert.doesNotMatch(workspaceResult.content[0].text, /global scoped/);
+
+    const globalResult = await captured.execute("tc-2", { query: "scoped build", scope: "global" });
+    assert.match(globalResult.content[0].text, /global scoped/);
+    assert.doesNotMatch(globalResult.content[0].text, /workspace scoped/);
+
+    dbManager.close();
+  });
 });
