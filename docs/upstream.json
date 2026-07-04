@@ -1,0 +1,20 @@
+{
+  "upstreamRepository": "https://github.com/chandra447/pi-hermes-memory",
+  "targetRepository": "https://github.com/ShikangHou/pi-hermes-memory-repo-local",
+  "baseVersion": "0.7.23",
+  "baseCommit": "fe7e7e3",
+  "canonicalTerminology": {
+    "current": "Workspace",
+    "legacyCompatibility": "Project"
+  },
+  "customizationStrategy": [
+    "additive modules",
+    "composition",
+    "wrappers/adapters",
+    "small integration patches"
+  ],
+  "notes": [
+    "Existing repo-local project memory and project skills are preserved as legacy compatibility capabilities.",
+    "New architecture code should use Workspace terminology and keep Project terminology at upstream and legacy API boundaries."
+  ]
+}
