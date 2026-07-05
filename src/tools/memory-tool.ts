@@ -18,6 +18,7 @@ import {
 } from "../store/sqlite-memory-store.js";
 import { MEMORY_TOOL_DESCRIPTION } from "../constants.js";
 import type { MemoryCategory, MemoryResult } from "../types.js";
+import { decideMemoryWrite } from "../context/write-time-consistency.js";
 
 function appendSyncWarning(result: MemoryResult, warning: string): MemoryResult {
   const warnings = [...(((result as any).warnings ?? []) as string[]), warning];
@@ -293,6 +294,38 @@ export function registerMemoryTool(
               syncWarning = await syncAddToSqlite(route, content, memoryCategory, failure_reason, dbManager);
             }
           } else {
+            const entries = typeof (store_ as { getMemoryEntries?: () => string[] }).getMemoryEntries === "function"
+              ? (store_ as { getMemoryEntries: () => string[] }).getMemoryEntries()
+              : [];
+            const decision = route.target === "memory" ? decideMemoryWrite(content, entries) : { type: "NEW" as const };
+
+            if (decision.type === "UNCHANGED") {
+              result = {
+                success: true,
+                target: route.target,
+                entries,
+                entry_count: entries.length,
+                message: "Entry already represented in this scope (no duplicate added).",
+              };
+              break;
+            }
+
+            if (decision.type === "UPDATE") {
+              result = await store_.replace(route.target, decision.existing, content);
+              if (result.success) {
+                syncWarning = await syncReplaceToSqlite(route, decision.existing, content, dbManager);
+              }
+              break;
+            }
+
+            if (decision.type === "REFINE" || decision.type === "UNCERTAIN") {
+              result = {
+                success: false,
+                error: `Memory write-time consistency is ${decision.type.toLowerCase()}: ${decision.reason}`,
+              };
+              break;
+            }
+
             result = await store_.add(route.target, content);
             if (result.success) {
               await syncEvictionsFromSqlite(route, result.evicted_entries, dbManager);

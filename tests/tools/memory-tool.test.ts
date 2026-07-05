@@ -267,6 +267,54 @@ describe("registerMemoryTool", () => {
     assert.strictEqual(results[0].content, 'Project entry');
   });
 
+  it("replaces conflicting package-manager memory instead of appending", async () => {
+    let capturedResult: any;
+    const mockPi = {
+      registerTool: (def: any) => {
+        capturedResult = def;
+      },
+    } as unknown as ExtensionAPI;
+
+    syncMemoryEntry(dbManager, {
+      content: "This repo uses npm.",
+      target: "memory",
+      project: "workspace-a",
+    });
+
+    const replaceCalls: any[] = [];
+    const mockProjectStore = {
+      getMemoryEntries: () => ["This repo uses npm."],
+      replace: (...args: any[]) => {
+        replaceCalls.push(args);
+        return {
+          success: true,
+          target: "memory",
+          entries: ["This repo uses pnpm."],
+          usage: "2% — 20/5000 chars",
+          entry_count: 1,
+          message: "Entry replaced.",
+        };
+      },
+    } as unknown as MemoryStore;
+
+    registerMemoryTool(mockPi, {} as MemoryStore, mockProjectStore, dbManager, "workspace-a");
+    const result = await capturedResult.execute(
+      "tc-1",
+      { action: "add", scope: "workspace", target: "memory", content: "This repo uses pnpm." },
+      undefined as any,
+      undefined as any,
+      undefined as any,
+    );
+
+    const parsed = JSON.parse(result.content[0].text);
+    assert.strictEqual(parsed.success, true);
+    assert.deepStrictEqual(replaceCalls, [["memory", "This repo uses npm.", "This repo uses pnpm."]]);
+
+    const results = getMemories(dbManager, { project: "workspace-a", target: "memory" });
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].content, "This repo uses pnpm.");
+  });
+
   it("maps canonical workspace scope to the active project store", async () => {
     let capturedResult: any;
     const mockPi = {
