@@ -47,6 +47,7 @@ import { registerIndexSessionsCommand } from "./handlers/index-sessions.js";
 import { registerLearnMemoryCommand } from "./handlers/learn-memory.js";
 import { registerSyncMarkdownMemoriesCommand, syncMarkdownMemoriesToSqlite } from "./handlers/sync-markdown-memories.js";
 import { registerPreviewContextCommand } from "./handlers/preview-context.js";
+import { registerContextCommands } from "./handlers/context-commands.js";
 import { loadConfig } from "./config.js";
 import { detectProject, detectProjectSkills } from "./project.js";
 import { buildPromptContext } from "./prompt-context.js";
@@ -230,6 +231,7 @@ export default function (pi: ExtensionAPI) {
   registerLearnMemoryCommand(pi);
   registerSyncMarkdownMemoriesCommand(pi, dbManager, globalDir, config.projectsMemoryDir, agentRoot);
   registerPreviewContextCommand(pi, store, projectStore, projectName, config);
+  registerContextCommands(pi, { agentRoot, globalDir, config });
 
   // ── 10. Live session indexing ──
   pi.on("message_end", async (_event, ctx) => {
