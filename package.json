@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "files": [
     "src",
+    "skills",
     "README.md",
     "LICENSE",
     "docs"

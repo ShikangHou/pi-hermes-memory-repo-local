@@ -74,7 +74,8 @@ describe("registerPreviewContextCommand", () => {
     assert.match(out, /Policy style: full/);
     assert.match(out, /Full Markdown memories are NOT injected/);
     assert.match(out, /memory_search/);
-    assert.match(out, /target="failure"/);
+    assert.match(out, /Current evidence always wins/);
+    assert.match(out, /scope="workspace"/);
     assert.ok(out.includes(MEMORY_POLICY_PROMPT));
     assert.match(out, /Blocks shown: 1/);
   });
@@ -115,6 +116,7 @@ describe("registerPreviewContextCommand", () => {
     assert.match(out, /Policy style: none/);
     assert.match(out, /No memory policy context is injected/);
     assert.doesNotMatch(out, /<memory-policy>/);
+    assert.doesNotMatch(out, /<core-context-policy>/);
     assert.match(out, /Blocks shown: 0/);
   });
 
