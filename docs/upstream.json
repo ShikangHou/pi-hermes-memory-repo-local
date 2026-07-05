@@ -1,6 +1,6 @@
 {
   "upstreamRepository": "https://github.com/chandra447/pi-hermes-memory",
-  "targetRepository": "https://github.com/ShikangHou/pi-hermes-memory-repo-local",
+  "targetRepository": "https://github.com/ShikangHou/pi-context-memory",
   "baseVersion": "0.7.23",
   "baseCommit": "fe7e7e3",
   "canonicalTerminology": {

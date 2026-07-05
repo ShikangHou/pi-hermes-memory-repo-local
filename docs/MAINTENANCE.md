@@ -5,14 +5,14 @@ This repository is the maintained repo-local Workspace distribution of upstream 
 The runtime package name remains `pi-hermes-memory` for Pi compatibility. The maintained project identity is:
 
 ```text
-Pi Hermes Memory Repo-Local
+Pi Context Memory
 ```
 
 ## Repositories
 
 | Role | Repository |
 |---|---|
-| Target implementation | `https://github.com/ShikangHou/pi-hermes-memory-repo-local` |
+| Target implementation | `https://github.com/ShikangHou/pi-context-memory` |
 | Upstream | `https://github.com/chandra447/pi-hermes-memory` |
 
 Track the upstream baseline in:
@@ -128,7 +128,7 @@ Example fields:
 ```json
 {
   "upstreamRepository": "https://github.com/chandra447/pi-hermes-memory",
-  "targetRepository": "https://github.com/ShikangHou/pi-hermes-memory-repo-local",
+  "targetRepository": "https://github.com/ShikangHou/pi-context-memory",
   "baseVersion": "<new-version>",
   "baseCommit": "<new-upstream-commit>"
 }

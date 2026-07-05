@@ -1,7 +1,7 @@
 {
   "name": "pi-hermes-memory",
   "version": "0.7.23",
-  "description": "Repo-local Workspace context distribution of pi-hermes-memory for Pi: persistent memory, Knowledge routing, Workspace Skills, session search, and upstream-compatible maintenance.",
+  "description": "Pi Context Memory: repo-local Workspace context distribution of pi-hermes-memory for Pi with Memory, Knowledge routing, Workspace Skills, session search, and upstream-compatible maintenance.",
   "type": "module",
   "main": "src/index.ts",
   "files": [
@@ -46,7 +46,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ShikangHou/pi-hermes-memory-repo-local"
+    "url": "https://github.com/ShikangHou/pi-context-memory"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

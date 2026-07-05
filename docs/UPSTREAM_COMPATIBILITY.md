@@ -5,7 +5,7 @@ Design source: `LONG_TERM_CONTEXT_ARCHITECTURE.md`
 ## Baseline
 
 - Upstream repository: `https://github.com/chandra447/pi-hermes-memory`
-- Target repository: `https://github.com/ShikangHou/pi-hermes-memory-repo-local`
+- Target repository: `https://github.com/ShikangHou/pi-context-memory`
 - Base version: `0.7.23`
 - Base commit: `fe7e7e3`
 

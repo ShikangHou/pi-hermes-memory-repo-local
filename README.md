@@ -1,8 +1,8 @@
 <div align="center">
 
-![Pi Hermes Memory Repo-Local](docs/images/pi_memory.png)
+![Pi Context Memory](docs/images/pi_memory.png)
 
-# 🧠 Pi Hermes Memory Repo-Local
+# 🧠 Pi Context Memory
 
 **Workspace-first long-term context for Pi, based on upstream `pi-hermes-memory`**
 
@@ -16,7 +16,7 @@ This repository is the maintained repo-local Workspace distribution of [`pi-herm
 Global Base + Current Workspace Overlay + Live Context
 ```
 
-The runtime package name remains `pi-hermes-memory` for Pi compatibility. The project name in this repository is **Pi Hermes Memory Repo-Local**.
+The runtime package name remains `pi-hermes-memory` for Pi compatibility. The project name in this repository is **Pi Context Memory**.
 
 Your Pi agent normally forgets everything when you close a session. **This extension fixes that**, and adds explicit Workspace routing for Memory, Knowledge, Skills, and Session fallback.
 
@@ -35,7 +35,7 @@ Your Pi agent normally forgets everything when you close a session. **This exten
 
 ```bash
 # Install this maintained repo-local distribution
-pi install git:github.com/ShikangHou/pi-hermes-memory-repo-local
+pi install git:github.com/ShikangHou/pi-context-memory
 
 # Index your past sessions (one-time)
 /memory-index-sessions
@@ -57,7 +57,7 @@ pi install git:github.com/ShikangHou/pi-hermes-memory-repo-local
 
 This repository tracks upstream `pi-hermes-memory` while preserving repo-local Workspace Memory, Workspace Skills, Knowledge routing, and migration safety.
 
-- Target repository: `https://github.com/ShikangHou/pi-hermes-memory-repo-local`
+- Target repository: `https://github.com/ShikangHou/pi-context-memory`
 - Upstream repository: `https://github.com/chandra447/pi-hermes-memory`
 - Upstream compatibility notes: [docs/UPSTREAM_COMPATIBILITY.md](docs/UPSTREAM_COMPATIBILITY.md)
 - Real data migration record: [docs/REAL_DATA_MIGRATION_PLAN.md](docs/REAL_DATA_MIGRATION_PLAN.md)
@@ -123,7 +123,7 @@ Every write — memory and skills — passes through a scanner before being acce
 ## Installation
 
 ```bash
-pi install git:github.com/ShikangHou/pi-hermes-memory-repo-local
+pi install git:github.com/ShikangHou/pi-context-memory
 ```
 
 To install the upstream original instead of this maintained repo-local distribution:
