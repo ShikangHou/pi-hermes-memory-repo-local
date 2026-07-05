@@ -66,7 +66,7 @@ describe("registerContextCommands", () => {
     const { ctx, notifications } = makeCtx(root);
     await commands.get("context-init-global").handler({}, ctx);
 
-    const indexPath = path.join(agentRoot, "knowledge", "INDEX.md");
+    const indexPath = path.join(root, "knowledge", "INDEX.md");
     assert.ok(fs.existsSync(indexPath));
     assert.match(fs.readFileSync(indexPath, "utf-8"), /Scope: global/);
 
@@ -131,7 +131,33 @@ describe("registerContextCommands", () => {
     assert.match(notifications[1].message, /Context Doctor \(read-only\)/);
     assert.match(notifications[1].message, /Global Knowledge Index: missing/);
     assert.match(notifications[1].message, /No fixes were applied/);
-    assert.strictEqual(fs.existsSync(path.join(agentRoot, "knowledge")), false);
+    assert.strictEqual(fs.existsSync(path.join(root, "knowledge")), false);
+  });
+
+  it("reports broken Knowledge paths and duplicate Source of Truth entries", async () => {
+    const root = makeTempDir();
+    const agentRoot = path.join(root, "agent");
+    const workspaceRoot = path.join(root, "repo");
+    fs.mkdirSync(path.join(workspaceRoot, ".git"), { recursive: true });
+    fs.mkdirSync(path.join(workspaceRoot, ".pi", "knowledge"), { recursive: true });
+    fs.writeFileSync(path.join(workspaceRoot, ".pi", "knowledge", "INDEX.md"), [
+      "| Title | Path | Purpose | When to Read | Status | Last Reviewed | Supersedes | Superseded By |",
+      "|---|---|---|---|---|---|---|---|",
+      "| Architecture | docs/A.md | A | A | active | 2026-07-05 | | |",
+      "| Architecture | docs/missing.md | B | B | active | 2026-07-05 | | |",
+    ].join("\n"), "utf-8");
+
+    const { pi, commands } = makePi();
+    registerContextCommands(pi as any, {
+      agentRoot,
+      globalDir: path.join(agentRoot, "pi-hermes-memory"),
+      config: { projectMemoryDirName: ".pi", projectMemoryMode: "repo-local" },
+    });
+
+    const { ctx, notifications } = makeCtx(workspaceRoot);
+    await commands.get("context-doctor").handler({}, ctx);
+
+    assert.match(notifications[0].message, /Workspace Knowledge Index broken paths: docs\/A\.md, docs\/missing\.md/);
+    assert.match(notifications[0].message, /Workspace Knowledge Index duplicate Source of Truth: title:architecture/);
   });
 });
-

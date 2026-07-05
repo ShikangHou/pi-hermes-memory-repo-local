@@ -2,6 +2,7 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { inspectKnowledgeIndex, summarizeKnowledgeInspection } from "../context/knowledge-index.js";
 import { resolveWorkspace } from "../workspace/index.js";
 import type { MemoryConfig } from "../types.js";
 
@@ -74,6 +75,10 @@ function knowledgeIndexTemplate(scope: "global" | "workspace"): string {
   ].join("\n");
 }
 
+function globalKnowledgeIndexPath(agentRoot: string): string {
+  return path.join(path.dirname(agentRoot), "knowledge", "INDEX.md");
+}
+
 function workspaceMarkdownTemplate(workspaceName: string): string {
   return [
     `# ${workspaceName} Workspace`,
@@ -116,7 +121,7 @@ function checkWorkspaceSchema(workspaceJsonPath: string): string {
 function buildStatusLines(options: ContextCommandOptions, cwd?: string): string[] {
   const workspace = resolveWorkspace({ cwd });
   const workspacePiDir = workspace ? path.join(workspace.rootDir, options.config.projectMemoryDirName ?? ".pi") : null;
-  const globalKnowledgeIndex = path.join(options.agentRoot, "knowledge", "INDEX.md");
+  const globalKnowledgeIndex = globalKnowledgeIndexPath(options.agentRoot);
   const workspaceKnowledgeIndex = workspacePiDir ? path.join(workspacePiDir, "knowledge", "INDEX.md") : null;
 
   return [
@@ -138,26 +143,34 @@ function buildStatusLines(options: ContextCommandOptions, cwd?: string): string[
 function buildDoctorLines(options: ContextCommandOptions, cwd?: string): string[] {
   const workspace = resolveWorkspace({ cwd });
   const workspacePiDir = workspace ? path.join(workspace.rootDir, options.config.projectMemoryDirName ?? ".pi") : null;
-  const globalKnowledgeIndex = path.join(options.agentRoot, "knowledge", "INDEX.md");
+  const globalKnowledgeIndex = globalKnowledgeIndexPath(options.agentRoot);
   const workspaceKnowledgeIndex = workspacePiDir ? path.join(workspacePiDir, "knowledge", "INDEX.md") : null;
   const workspaceJsonPath = workspacePiDir ? path.join(workspacePiDir, "workspace.json") : null;
   const legacyMemoryDir = path.join(path.dirname(options.agentRoot), "memory");
+  const globalKnowledge = inspectKnowledgeIndex(globalKnowledgeIndex, path.dirname(options.agentRoot));
+  const workspaceKnowledge = workspace && workspaceKnowledgeIndex
+    ? inspectKnowledgeIndex(workspaceKnowledgeIndex, workspace.rootDir)
+    : null;
 
   const lines = ["Context Doctor (read-only)"];
   lines.push(`Runtime/tool availability: ok`);
   lines.push(`Workspace detection: ${workspace ? `${workspace.rootDir} (${workspace.source})` : "none"}`);
   lines.push(`Workspace ID: ${workspace?.workspaceId ?? "none"}`);
   lines.push(`Workspace schemaVersion: ${workspaceJsonPath ? checkWorkspaceSchema(workspaceJsonPath) : "not applicable"}`);
-  lines.push(`Global Knowledge Index: ${fs.existsSync(globalKnowledgeIndex) ? "ok" : "missing"} ${globalKnowledgeIndex}`);
-  lines.push(`Workspace Knowledge Index: ${workspaceKnowledgeIndex && fs.existsSync(workspaceKnowledgeIndex) ? "ok" : "missing"} ${workspaceKnowledgeIndex ?? "none"}`);
+  lines.push(...summarizeKnowledgeInspection("Global Knowledge Index", globalKnowledge));
+  if (workspaceKnowledge) {
+    lines.push(...summarizeKnowledgeInspection("Workspace Knowledge Index", workspaceKnowledge));
+  } else {
+    lines.push(`Workspace Knowledge Index: missing ${workspaceKnowledgeIndex ?? "none"}`);
+  }
   lines.push(`Global Memory Path: ${fs.existsSync(options.globalDir) ? "ok" : "missing"} ${options.globalDir}`);
   lines.push(`Global Skill Path: ${fs.existsSync(path.join(options.globalDir, "skills")) ? "ok" : "missing"} ${path.join(options.globalDir, "skills")}`);
   lines.push(`Workspace Memory Path: ${workspacePiDir && fs.existsSync(workspacePiDir) ? "ok" : "missing"} ${workspacePiDir ?? "none"}`);
   lines.push(`Workspace Skill Path: ${workspacePiDir && fs.existsSync(path.join(workspacePiDir, "skills")) ? "ok" : "missing"} ${workspacePiDir ? path.join(workspacePiDir, "skills") : "none"}`);
   lines.push(`Legacy ~/.pi/memory/: ${fs.existsSync(legacyMemoryDir) ? "present" : "absent"} ${legacyMemoryDir}`);
-  lines.push("Broken Knowledge paths: not checked in this stage");
-  lines.push("Duplicate Source of Truth: not checked in this stage");
-  lines.push("Stale documents: not checked in this stage");
+  lines.push("Broken Knowledge paths: checked");
+  lines.push("Duplicate Source of Truth: checked");
+  lines.push("Stale documents: checked");
   lines.push("Similar Skills: not checked in this stage");
   lines.push("Skill verification: not checked in this stage");
   lines.push("No fixes were applied.");
@@ -168,7 +181,7 @@ export function registerContextCommands(pi: ExtensionAPI, options: ContextComman
   pi.registerCommand("context-init-global", {
     description: "Initialize the Global Knowledge INDEX without overwriting existing content",
     handler: async (_args, ctx: CommandContext) => {
-      const indexPath = path.join(options.agentRoot, "knowledge", "INDEX.md");
+      const indexPath = globalKnowledgeIndexPath(options.agentRoot);
       const result = ensureFile(indexPath, knowledgeIndexTemplate("global"));
       notify(ctx, formatWriteResults("Global context bootstrap", [result]), "info");
     },
