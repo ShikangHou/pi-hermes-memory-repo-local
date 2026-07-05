@@ -46,6 +46,8 @@ Custom behavior should prefer:
 
 ## Upstream Sync Process
 
+Detailed maintenance and migration procedure: `docs/MAINTENANCE.md`.
+
 1. Fetch new upstream.
 2. Create a temporary sync branch.
 3. Compare old upstream base to new upstream.

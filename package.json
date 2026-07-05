@@ -1,7 +1,7 @@
 {
   "name": "pi-hermes-memory",
   "version": "0.7.23",
-  "description": "🧠 Persistent memory + 🔍 session search + 🛡️ secret scanning for Pi. Token-aware policy-only memory by default, SQLite FTS5 search, auto-consolidation, procedural skills. 368 tests. Ported from Hermes agent.",
+  "description": "Repo-local Workspace context distribution of pi-hermes-memory for Pi: persistent memory, Knowledge routing, Workspace Skills, session search, and upstream-compatible maintenance.",
   "type": "module",
   "main": "src/index.ts",
   "files": [
@@ -38,12 +38,15 @@
     "auto-consolidation",
     "memory-aging",
     "context-fencing",
-    "two-tier-memory"
+    "two-tier-memory",
+    "workspace",
+    "repo-local",
+    "long-term-context"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chandra447/pi-hermes-memory"
+    "url": "https://github.com/ShikangHou/pi-hermes-memory-repo-local"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": "*",

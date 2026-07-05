@@ -1,19 +1,29 @@
 <div align="center">
 
-![Pi Hermes Memory](docs/images/pi_memory.png)
+![Pi Hermes Memory Repo-Local](docs/images/pi_memory.png)
 
-# 🧠 Pi Hermes Memory
+# 🧠 Pi Hermes Memory Repo-Local
 
-**Persistent memory + session search + secret scanning for Pi**
+**Workspace-first long-term context for Pi, based on upstream `pi-hermes-memory`**
 
 ---
 
 </div>
 
-Your Pi agent normally forgets everything when you close a session. **This extension fixes that.**
+This repository is the maintained repo-local Workspace distribution of [`pi-hermes-memory`](https://github.com/chandra447/pi-hermes-memory). It keeps the upstream memory runtime intact where possible, while adding the long-term context architecture used by this workspace:
+
+```text
+Global Base + Current Workspace Overlay + Live Context
+```
+
+The runtime package name remains `pi-hermes-memory` for Pi compatibility. The project name in this repository is **Pi Hermes Memory Repo-Local**.
+
+Your Pi agent normally forgets everything when you close a session. **This extension fixes that**, and adds explicit Workspace routing for Memory, Knowledge, Skills, and Session fallback.
 
 - 🔍 **Search every conversation** — "what did we discuss about auth?" finds it instantly
 - 🧠 **Persistent memory** — facts, preferences, corrections survive across sessions
+- 🗂️ **Workspace overlays** — repo-local `.pi/` data stays isolated to the current Workspace
+- 🧭 **Knowledge routing** — long-form Markdown stays source-of-truth and is referenced through INDEX files
 - ⚠️ **Learns from failures** — remembers what didn't work so you don't repeat mistakes
 - 🏷️ **Categorized memories** — failures, corrections, insights, conventions, and tool quirks organized for fast retrieval
 - 🛡️ **Secret scanning** — API keys and tokens are blocked from being saved
@@ -24,11 +34,17 @@ Your Pi agent normally forgets everything when you close a session. **This exten
 ## Quick Start
 
 ```bash
-# Install
-pi install npm:pi-hermes-memory
+# Install this maintained repo-local distribution
+pi install git:github.com/ShikangHou/pi-hermes-memory-repo-local
 
 # Index your past sessions (one-time)
 /memory-index-sessions
+
+# Initialize long-term context routing when needed
+/context-init-global
+/context-init-workspace
+/context-status
+/context-doctor
 
 # Backfill older Markdown memories into SQLite search (optional)
 /memory-sync-markdown
@@ -36,6 +52,18 @@ pi install npm:pi-hermes-memory
 # Learn how to use it
 /learn-memory-tool
 ```
+
+## Maintenance Status
+
+This repository tracks upstream `pi-hermes-memory` while preserving repo-local Workspace Memory, Workspace Skills, Knowledge routing, and migration safety.
+
+- Target repository: `https://github.com/ShikangHou/pi-hermes-memory-repo-local`
+- Upstream repository: `https://github.com/chandra447/pi-hermes-memory`
+- Upstream compatibility notes: [docs/UPSTREAM_COMPATIBILITY.md](docs/UPSTREAM_COMPATIBILITY.md)
+- Real data migration record: [docs/REAL_DATA_MIGRATION_PLAN.md](docs/REAL_DATA_MIGRATION_PLAN.md)
+- Upstream update and migration guide: [docs/MAINTENANCE.md](docs/MAINTENANCE.md)
+
+When upstream `pi-hermes-memory` updates, do not blind-pull onto `main`. Follow [docs/MAINTENANCE.md](docs/MAINTENANCE.md): fetch upstream, use a temporary sync branch, preserve adapter boundaries, run the compatibility tests, then update migration notes before publishing.
 
 ## Upgrade Notes (v0.7.10)
 
@@ -64,7 +92,7 @@ No manual action is needed. Launch Pi once after upgrade to let migration/normal
 | 🔄 **Auto-Consolidation** | When memory hits capacity, auto-merges instead of erroring |
 | 🛡️ **Secret Scanning** | API keys, tokens, SSH keys blocked from persistence |
 | 📊 **Memory Aging** | Entries carry timestamps — consolidation knows what's stale |
-| 🏗️ **Two-Tier Memory** | Global + per-project memory, both searchable |
+| 🏗️ **Workspace Context** | Global Base + Current Workspace Overlay, both searchable without cross-Workspace leakage |
 | 💾 **Extended Store** | Unlimited searchable memories beyond core 5,000-char limit |
 | 🎓 **Onboarding** | `/memory-interview` pre-fills your profile on first session |
 
@@ -95,12 +123,13 @@ Every write — memory and skills — passes through a scanner before being acce
 ## Installation
 
 ```bash
-pi install npm:pi-hermes-memory
+pi install git:github.com/ShikangHou/pi-hermes-memory-repo-local
 ```
 
-Or install from GitHub:
+To install the upstream original instead of this maintained repo-local distribution:
 
 ```bash
+pi install npm:pi-hermes-memory
 pi install git:github:chandra447/pi-hermes-memory
 ```
 
@@ -110,18 +139,19 @@ Or test locally without installing:
 pi -e /path/to/pi-hermes-memory/src/index.ts
 ```
 
-## Two-Tier Memory Architecture
+## Workspace Long-Term Context Architecture
 
-The extension stores memory at two levels:
+The extension stores long-term context in two durable layers plus current live evidence:
 
 | Tier | Location | What goes here | Available when |
 |---|---|---|---|
 | **Global** | `~/.pi/agent/pi-hermes-memory/` | Facts that apply everywhere — your name, preferences, OS, tools | Searchable via `memory_search` |
-| **Project** | `~/.pi/agent/projects-memory/<project>/` by default, or `<git-root>/.pi/` with repo-local mode | Facts scoped to one codebase — architecture decisions, API quirks, team norms | Searchable when cwd matches the project |
+| **Workspace** | `~/.pi/agent/projects-memory/<project>/` in legacy central mode, or `<workspace-root>/.pi/` with repo-local mode | Facts scoped to one Workspace — architecture decisions, API quirks, team norms, Workspace Skills | Searchable only when cwd matches the Workspace |
+| **Live Context** | current session, files, tool output, tests | Current evidence and user instructions | Always highest priority |
 
-By default, full Markdown memories are **not** injected into the system prompt. The system prompt gets a full-detail `<memory-policy>` that tells the agent when to call `memory_search` and how to treat memory results. This keeps first-turn token usage low while preserving access to user, project, failure, correction, insight, preference, convention, and tool-quirk memories.
+By default, full Markdown memories are **not** injected into the system prompt. The system prompt gets a full-detail `<memory-policy>` that tells the agent when to call `memory_search` and how to treat memory results. This keeps first-turn token usage low while preserving access to user, Workspace, failure, correction, insight, preference, convention, and tool-quirk memories.
 
-Project memory storage is configurable. The default `central` mode keeps project memory under `~/.pi/agent/projects-memory/<project>/`. Set `"projectMemoryMode": "repo-local"` to store active-project memory in `<git-root>/.pi/` and project skills in `<git-root>/.pi/skills/`, so those plain Markdown files can be reviewed and synced with Git.
+Workspace memory storage is configurable through legacy-compatible config names. The default `central` mode keeps legacy project memory under `~/.pi/agent/projects-memory/<project>/`. Set `"projectMemoryMode": "repo-local"` to store active Workspace memory in `<workspace-root>/.pi/` and Workspace Skills in `<workspace-root>/.pi/skills/`, so those plain Markdown files can be reviewed and synced with Git when safe.
 
 ```
 System Prompt
@@ -134,7 +164,7 @@ System Prompt
 └─────────────────────────────────────────┘
 ```
 
-Set `"memoryPolicyStyle"` to `"full"`, `"compact"`, `"custom"`, or `"none"` to choose policy verbosity while keeping policy-only mode. Set `"memoryMode": "legacy-inject"` to restore the old behavior that injects MEMORY.md, USER.md, project memory, and recent failures into the prompt.
+Set `"memoryPolicyStyle"` to `"full"`, `"compact"`, `"custom"`, or `"none"` to choose policy verbosity while keeping policy-only mode. Set `"memoryMode": "legacy-inject"` to restore the old behavior that injects MEMORY.md, USER.md, Workspace memory, and recent failures into the prompt.
 
 ## Failure Memory
 
@@ -375,6 +405,10 @@ This means skills build up naturally over time without you having to ask.
 | `/memory-index-sessions` | Import past Pi sessions into the search database |
 | `/memory-sync-markdown` | Backfill Markdown memories into the SQLite search store |
 | `/memory-preview-context` | Preview the memory policy or legacy memory blocks appended to the system prompt |
+| `/context-init-global` | Create the Global Knowledge INDEX if missing, without overwriting existing content |
+| `/context-init-workspace` | Create Workspace marker and Knowledge INDEX files if missing, without overwriting existing content |
+| `/context-status` | Show active Global, Workspace, and Live Context layers |
+| `/context-doctor` | Run read-only diagnostics for Workspace detection, Knowledge INDEX files, Skill paths, and legacy data |
 | `/learn-memory-tool` | Skill that teaches users how to use the memory system |
 
 ### `/memory-insights` Output
@@ -513,7 +547,7 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 │   │   └── testing-checklist/
 │   │       └── SKILL.md
 │   └── .skills-migrated-to-extension-storage
-├── projects-memory/       ← ALL project-scoped memories (one subfolder per project)
+├── projects-memory/       ← legacy central Workspace memory (one subfolder per legacy project key)
 │   ├── my-project/
 │   │   ├── MEMORY.md
 │   │   └── skills/
@@ -527,19 +561,23 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 
 These are plain markdown files. You can read and edit them directly if you want to curate what the agent remembers. Memory entries are separated by `§` (section sign). Skills use Pi-compatible `SKILL.md` files with frontmatter.
 
-With repo-local project memory enabled, active-project data lives in the repository instead:
+With repo-local Workspace memory enabled, active Workspace data lives in the Workspace root instead:
 
 ```
-<git-root>/
+<workspace-root>/
 └── .pi/
-    ├── MEMORY.md          ← Project-scoped memory for this repository
-    ├── failures.md        ← Project-scoped failures/corrections when routed here
+    ├── workspace.json     ← stable Workspace marker
+    ├── WORKSPACE.md       ← Workspace entry point for stable orientation
+    ├── MEMORY.md          ← Workspace-scoped memory for this repository
+    ├── failures.md        ← Workspace-scoped failures/corrections when routed here
+    ├── knowledge/
+    │   └── INDEX.md       ← semantic routing table pointing to existing long-form docs
     └── skills/
         └── deploy-checklist/
             └── SKILL.md
 ```
 
-Repo-local project memory is intended for project facts and workflows that are safe to commit. Review `.pi/` before adding it to Git, especially if memories mention local paths, internal URLs, or environment-specific details.
+Repo-local Workspace memory is intended for Workspace facts and workflows that are safe to commit. Review `.pi/` before adding it to Git, especially if memories mention local paths, internal URLs, or environment-specific details. The extension never auto Git-adds, commits, or pushes Workspace `.pi` data.
 
 If you are upgrading from a version that stored project memory directly at `~/.pi/agent/<project>/MEMORY.md`, the extension copies or merges those entries into `~/.pi/agent/projects-memory/<project>/MEMORY.md` on startup. The old folders are left in place as a backup.
 
