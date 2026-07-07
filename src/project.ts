@@ -24,7 +24,7 @@ export interface ProjectSkillInfo extends ProjectInfo {
 }
 
 export interface ProjectDetectionOptions {
-  /** Project memory storage mode. Default: central */
+  /** Project memory storage mode. Default: repo-local */
   projectMemoryMode?: ProjectMemoryMode;
   /** Central project memory directory, relative to ~/.pi/agent. */
   projectsMemoryDir?: string;
@@ -41,7 +41,7 @@ function normalizeDetectionOptions(optionsOrProjectsMemoryDir?: ProjectDetection
     };
   }
   return {
-    projectMemoryMode: optionsOrProjectsMemoryDir?.projectMemoryMode ?? "central",
+    projectMemoryMode: optionsOrProjectsMemoryDir?.projectMemoryMode ?? "repo-local",
     projectsMemoryDir: optionsOrProjectsMemoryDir?.projectsMemoryDir ?? "projects-memory",
     projectMemoryDirName: optionsOrProjectsMemoryDir?.projectMemoryDirName ?? ".pi",
   };
@@ -61,7 +61,7 @@ export function findGitRoot(cwd: string): string | null {
  * is stored at <git-root>/<projectMemoryDirName>/.
  */
 export function detectProject(
-  optionsOrProjectsMemoryDir: ProjectDetectionOptions | string = "projects-memory",
+  optionsOrProjectsMemoryDir: ProjectDetectionOptions | string = {},
   cwd?: string,
 ): ProjectInfo {
   const options = normalizeDetectionOptions(optionsOrProjectsMemoryDir);
@@ -100,7 +100,7 @@ export function detectProject(
 }
 
 export function detectProjectSkills(
-  optionsOrProjectsMemoryDir: ProjectDetectionOptions | string = "projects-memory",
+  optionsOrProjectsMemoryDir: ProjectDetectionOptions | string = {},
   cwd?: string,
 ): ProjectSkillInfo {
   const project = detectProject(optionsOrProjectsMemoryDir, cwd);

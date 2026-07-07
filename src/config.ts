@@ -74,7 +74,7 @@ const DEFAULT_CONFIG: MemoryConfig = {
   consolidationTimeoutMs: DEFAULT_CONSOLIDATION_TIMEOUT_MS,
   nudgeToolCalls: DEFAULT_NUDGE_TOOL_CALLS,
   projectsMemoryDir: DEFAULT_PROJECTS_MEMORY_DIR,
-  projectMemoryMode: "central",
+  projectMemoryMode: "repo-local",
   projectMemoryDirName: ".pi",
   sessionSearch: { variant: "legacy" },
 };

@@ -52,7 +52,7 @@ export interface MemoryConfig {
   memoryDir?: string;
   /** Directory for central-mode project-scoped memory (relative to ~/.pi/agent). Default: "projects-memory" */
   projectsMemoryDir?: string;
-  /** Where project-scoped memory is stored. Default: "central" */
+  /** Where project-scoped memory is stored. Default: "repo-local" */
   projectMemoryMode?: ProjectMemoryMode;
   /** Repository-local project memory directory name. Default: ".pi" */
   projectMemoryDirName?: string;

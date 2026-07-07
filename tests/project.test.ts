@@ -24,6 +24,24 @@ describe("project detection", () => {
     );
   });
 
+  it("detectProject defaults to repo-local project memory from nested cwd", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "hermes-default-repo-local-"));
+    try {
+      const repo = path.join(tmp, "demo-repo");
+      const nested = path.join(repo, "src", "module");
+      fs.mkdirSync(path.join(repo, ".git"), { recursive: true });
+      fs.mkdirSync(nested, { recursive: true });
+
+      const result = detectProject(undefined, nested);
+
+      assert.strictEqual(result.name, "demo-repo");
+      assert.strictEqual(result.rootDir, repo);
+      assert.strictEqual(result.memoryDir, path.join(repo, ".pi"));
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
   it("detectProjectSkills appends the skills directory for dynamic discovery", () => {
     const cwd = "/tmp/demo-repo";
     const result = detectProjectSkills("projects-memory", cwd);

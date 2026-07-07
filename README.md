@@ -151,7 +151,7 @@ The extension stores long-term context in two durable layers plus current live e
 
 By default, full Markdown memories are **not** injected into the system prompt. The system prompt gets a full-detail `<memory-policy>` that tells the agent when to call `memory_search` and how to treat memory results. This keeps first-turn token usage low while preserving access to user, Workspace, failure, correction, insight, preference, convention, and tool-quirk memories.
 
-Workspace memory storage is configurable through legacy-compatible config names. The default `central` mode keeps legacy project memory under `~/.pi/agent/projects-memory/<project>/`. Set `"projectMemoryMode": "repo-local"` to store active Workspace memory in `<workspace-root>/.pi/` and Workspace Skills in `<workspace-root>/.pi/skills/`, so those plain Markdown files can be reviewed and synced with Git when safe.
+Workspace memory storage is configurable through legacy-compatible config names. Use `"projectMemoryMode": "repo-local"` to store active Workspace memory in `<workspace-root>/.pi/` and Workspace Skills in `<workspace-root>/.pi/skills/`, so those plain Markdown files can be reviewed and synced with Git when safe. The legacy-compatible `central` mode keeps project memory under `~/.pi/agent/projects-memory/<project>/`.
 
 ```
 System Prompt
@@ -473,7 +473,7 @@ Create `~/.pi/agent/hermes-memory-config.json`:
   "projectCharLimit": 5000,
   "memoryDir": "~/.pi/agent/pi-hermes-memory",
   "projectsMemoryDir": "projects-memory",
-  "projectMemoryMode": "central",
+  "projectMemoryMode": "repo-local",
   "projectMemoryDirName": ".pi",
   "sessionSearch": { "variant": "legacy" },
   "llmModelOverride": "openrouter/deepseek/deepseek-v4-flash",
@@ -507,7 +507,7 @@ Create `~/.pi/agent/hermes-memory-config.json`:
 | `projectCharLimit` | `5000` | Max characters in project-scoped MEMORY.md |
 | `memoryDir` | `~/.pi/agent/pi-hermes-memory` | Custom directory for extension storage files |
 | `projectsMemoryDir` | `projects-memory` | Subdirectory under `~/.pi/agent/` for project-scoped memory |
-| `projectMemoryMode` | `central` | Project memory storage mode. `central` stores under `~/.pi/agent/projects-memory/<project>/`; `repo-local` stores under the current Git root |
+| `projectMemoryMode` | `repo-local` | Project memory storage mode. `repo-local` stores under the current Git root. Legacy-compatible `central` stores under `~/.pi/agent/projects-memory/<project>/` |
 | `projectMemoryDirName` | `.pi` | Directory name used for repo-local project memory, producing `<git-root>/.pi/` by default |
 | `sessionSearch` | `{ "variant": "legacy" }` | Session search implementation: `legacy` keeps the existing SQLite/FTS snippet search; `anchors` uses the opt-in Markdown request surface and returns compact JSONL line-range anchors from `~/.pi/agent/sessions/` |
 | `llmModelOverride` | unset | Optional model override for background review (direct and subprocess), correction save, session flush, and consolidation |

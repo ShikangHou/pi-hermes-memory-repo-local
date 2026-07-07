@@ -34,7 +34,7 @@ describe("loadConfig", () => {
     assert.strictEqual(config.failureInjectionMaxAgeDays, 7);
     assert.strictEqual(config.failureInjectionMaxEntries, 5);
     assert.strictEqual(config.projectsMemoryDir, "projects-memory");
-    assert.strictEqual(config.projectMemoryMode, "central");
+    assert.strictEqual(config.projectMemoryMode, "repo-local");
     assert.strictEqual(config.projectMemoryDirName, ".pi");
     assert.deepStrictEqual(config.sessionSearch, { variant: "legacy" });
     assert.strictEqual(config.llmModelOverride, undefined);
@@ -96,7 +96,7 @@ describe("loadConfig", () => {
     assert.strictEqual(config.failureInjectionMaxAgeDays, 7);
     assert.strictEqual(config.failureInjectionMaxEntries, 5);
     assert.strictEqual(config.projectsMemoryDir, "projects-memory");
-    assert.strictEqual(config.projectMemoryMode, "central");
+    assert.strictEqual(config.projectMemoryMode, "repo-local");
     assert.strictEqual(config.projectMemoryDirName, ".pi");
     assert.strictEqual(config.llmModelOverride, undefined);
     assert.strictEqual(config.llmThinkingOverride, undefined);
@@ -164,7 +164,7 @@ describe("loadConfig", () => {
     }));
 
     const config = loadConfig(TEST_CONFIG_PATH);
-    assert.strictEqual(config.projectMemoryMode, "central");
+    assert.strictEqual(config.projectMemoryMode, "repo-local");
     assert.strictEqual(config.projectMemoryDirName, ".pi");
   });
 

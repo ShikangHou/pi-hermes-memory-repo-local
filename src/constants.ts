@@ -87,6 +87,12 @@ export const COMBINED_REVIEW_PROMPT = `Review the conversation above and conside
 
 **Memory**: Has the user revealed things about themselves — their persona, desires, preferences, or personal details? Has the user expressed expectations about how you should behave, their work style, or ways they want you to operate? If so, save using the memory tool.
 
+**Scope routing is mandatory**:
+- Use target="user" only for durable user identity, preferences, communication style, and cross-workspace expectations.
+- Use target="memory" only for global facts that apply across workspaces, such as OS, editor, shell, or generally reusable tool quirks.
+- Use target="project" for all current workspace facts: repository architecture, package manager, commands, paths, APIs, conventions, deployment steps, and project-specific tool quirks.
+- When unsure whether a fact is global or workspace-specific, prefer target="project" if it mentions this repo, current files, local scripts, dependencies, or project behavior.
+
 **Failures & Corrections**: Did anything fail or go wrong? Extract these as failure memories:
 - [failure] What was tried but didn't work? (e.g., "Used localStorage for tokens — XSS vulnerability")
 - [correction] Did the user correct you? (e.g., "Use pnpm, not npm")
@@ -107,6 +113,12 @@ Review these aspects:
 - **Memory**: User persona, preferences, expectations about how the agent should behave, work style.
 - **Failures & Corrections**: What failed, user corrections, insights, conventions, tool quirks.
 
+Scope routing is mandatory:
+- target="user": durable user identity, preferences, communication style, and cross-workspace expectations.
+- target="memory": global facts that apply across workspaces, such as OS, editor, shell, or generally reusable tool quirks.
+- target="project": current workspace facts, including repository architecture, package manager, commands, paths, APIs, conventions, deployment steps, and project-specific tool quirks.
+- If a fact mentions this repo, current files, local scripts, dependencies, or project behavior, use target="project" instead of target="memory".
+
 Background boundary: only emit Memory operations. Do NOT create, edit, or delete Knowledge documents or Skills. Only save genuinely durable facts — not task progress, session outcomes, or temporary state.
 
 Respond with JSON only (no markdown fences):
@@ -116,6 +128,11 @@ Respond with JSON only (no markdown fences):
       "action": "add",
       "target": "memory",
       "content": "entry text"
+    },
+    {
+      "action": "add",
+      "target": "project",
+      "content": "This workspace uses pnpm for package management."
     }
   ]
 }
