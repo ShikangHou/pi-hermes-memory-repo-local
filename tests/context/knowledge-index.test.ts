@@ -50,6 +50,31 @@ describe("knowledge-index", () => {
     assert.deepStrictEqual(inspection.staleEntries.map((entry) => entry.title), ["Old Plan"]);
   });
 
+  it("resolves moved workspace absolute paths across macOS and Windows", () => {
+    const parent = makeTempDir();
+    const root = path.join(parent, "doc2");
+    fs.mkdirSync(path.join(root, ".pi", "memory"), { recursive: true });
+    fs.writeFileSync(path.join(root, ".pi", "memory", "INDEX.md"), "# Index\n", "utf-8");
+    fs.writeFileSync(path.join(root, ".pi", "memory", "workspace-conventions.md"), "# Conventions\n", "utf-8");
+
+    const indexPath = path.join(root, ".pi", "knowledge", "INDEX.md");
+    fs.mkdirSync(path.dirname(indexPath), { recursive: true });
+    fs.writeFileSync(indexPath, [
+      "| Title | Path | Purpose | When to Read | Status | Last Reviewed | Supersedes | Superseded By |",
+      "|---|---|---|---|---|---|---|---|",
+      "| Legacy Mac Index | /Volumes/hsk/daa_doc/doc2/.pi/memory/INDEX.md | One | A | active | 2026-07-09 | | |",
+      "| Legacy Windows Conventions | E:\\Users\\hsk\\Desktop\\daa_doc\\doc2\\.pi\\memory\\workspace-conventions.md | Two | B | active | 2026-07-09 | | |",
+    ].join("\n"), "utf-8");
+
+    const inspection = inspectKnowledgeIndex(indexPath, root);
+
+    assert.deepStrictEqual(inspection.brokenPaths, []);
+    assert.deepStrictEqual(inspection.entries.map((entry) => entry.resolvedPath), [
+      path.join(root, ".pi", "memory", "INDEX.md"),
+      path.join(root, ".pi", "memory", "workspace-conventions.md"),
+    ]);
+  });
+
   it("summarizes missing and healthy indexes for doctor output", () => {
     const root = makeTempDir();
     const missing = inspectKnowledgeIndex(path.join(root, "missing.md"), root);
@@ -58,4 +83,3 @@ describe("knowledge-index", () => {
     ]);
   });
 });
-

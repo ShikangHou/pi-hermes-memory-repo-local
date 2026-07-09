@@ -42,10 +42,37 @@ function normalizeStatus(value: string): KnowledgeStatus {
   return "unknown";
 }
 
+function isPortableAbsolutePath(input: string): boolean {
+  return path.isAbsolute(input) || path.win32.isAbsolute(input) || path.posix.isAbsolute(input);
+}
+
+function splitPortablePath(input: string): string[] {
+  return input
+    .replace(/^[A-Za-z]:/, "")
+    .split(/[\\/]+/)
+    .filter(Boolean);
+}
+
+function resolveMovedWorkspacePath(scopeRoot: string, sourcePath: string): string | null {
+  const scopeBase = path.basename(path.resolve(scopeRoot));
+  if (!scopeBase) return null;
+
+  const segments = splitPortablePath(sourcePath);
+  const scopeBaseLower = scopeBase.toLowerCase();
+  const matchIndex = segments
+    .map((segment) => segment.toLowerCase())
+    .lastIndexOf(scopeBaseLower);
+
+  if (matchIndex === -1) return null;
+  return path.join(scopeRoot, ...segments.slice(matchIndex + 1));
+}
+
 function resolveKnowledgePath(scopeRoot: string, sourcePath: string): string {
   const cleaned = sourcePath.trim();
   if (!cleaned) return "";
-  if (path.isAbsolute(cleaned)) return path.normalize(cleaned);
+  if (isPortableAbsolutePath(cleaned)) {
+    return resolveMovedWorkspacePath(scopeRoot, cleaned) ?? path.normalize(cleaned);
+  }
   return path.resolve(scopeRoot, cleaned);
 }
 
@@ -168,4 +195,3 @@ export function summarizeKnowledgeInspection(label: string, inspection: Knowledg
   }
   return lines;
 }
-

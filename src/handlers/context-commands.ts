@@ -69,6 +69,7 @@ function knowledgeIndexTemplate(scope: "global" | "workspace"): string {
     "",
     "This file is a semantic routing table for long-term background sources.",
     "Prefer pointing to existing Source of Truth documents instead of copying them.",
+    "Use paths relative to this scope root so the index remains portable across machines.",
     "",
     "| Title | Path | Purpose | When to Read | Status | Last Reviewed | Supersedes | Superseded By |",
     "|---|---|---|---|---|---|---|---|",
