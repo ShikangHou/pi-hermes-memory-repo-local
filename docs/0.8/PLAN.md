@@ -689,8 +689,8 @@ Implement in this order:
 3. [x] Move SQLite isolation to stable Workspace IDs for current writes/search while retaining the legacy `project` display field for one compatibility cycle.
 4. [x] Fix active repo-local Markdown backfill with stable Workspace identity.
 5. [x] Add unified validation and quarantine to MemoryStore writes, every Markdown import path, and SQLite recall; expose quarantine list/delete commands.
-6. Serialize MemoryStore writes.
-7. Add concurrency and cross-Workspace isolation tests.
+6. [x] Serialize MemoryStore add/failure/replace/remove mutations with a FIFO queue.
+7. [x] Add 100-concurrent-write and cross-Workspace isolation tests.
 8. Implement `/memory-doctor`.
 9. Only then begin Router, Ranking, and automatic retrieval.
 

@@ -13,6 +13,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { validateMemoryContent, type MemoryValidationOptions } from "../security/memory-validation.js";
 import type { MemoryQuarantine } from "../security/memory-quarantine.js";
 import { normalizeMemoryLookupText } from "./memory-lookup.js";
@@ -34,8 +35,24 @@ export class MemoryStore {
   private failureEntries: string[] = [];
   private snapshot: MemorySnapshot = { memory: "", user: "" };
   private consolidator: ((target: "memory" | "user" | "failure", signal?: AbortSignal) => Promise<ConsolidationResult>) | null = null;
+  private writeQueue: Promise<void> = Promise.resolve();
+  private readonly writeLockContext = new AsyncLocalStorage<boolean>();
 
   constructor(private config: MemoryConfig, private readonly quarantine?: MemoryQuarantine) {}
+
+  /** Serialize all in-process mutations in FIFO order. */
+  async withWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.writeLockContext.getStore()) return operation();
+    const previous = this.writeQueue;
+    let release!: () => void;
+    this.writeQueue = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    try {
+      return await this.writeLockContext.run(true, operation);
+    } finally {
+      release();
+    }
+  }
 
   private validateWrite(content: string, source: string): { content?: string; error?: string } {
     const options: MemoryValidationOptions = { source, trustLevel: "trusted", phase: "write" };
@@ -120,7 +137,7 @@ export class MemoryStore {
   // ─── CRUD ───
 
   async add(target: "memory" | "user" | "failure", content: string, signal?: AbortSignal): Promise<MemoryResult> {
-    return this._add(target, content, signal);
+    return this.withWriteLock(() => this._add(target, content, signal));
   }
 
   async addFailure(content: string, options: {
@@ -131,7 +148,7 @@ export class MemoryStore {
     project?: string;
   }): Promise<MemoryResult> {
     const failureText = this.buildFailureMemoryText(content, options);
-    return this._add("failure", failureText, undefined, 1, "Failure memory saved: " + options.category);
+    return this.withWriteLock(() => this._add("failure", failureText, undefined, 1, "Failure memory saved: " + options.category));
   }
 
   getFailureEntries(maxAgeDays = 7): string[] {
@@ -247,6 +264,10 @@ export class MemoryStore {
   }
 
   async replace(target: "memory" | "user" | "failure", oldText: string, newContent: string): Promise<MemoryResult> {
+    return this.withWriteLock(() => this.replaceUnlocked(target, oldText, newContent));
+  }
+
+  private async replaceUnlocked(target: "memory" | "user" | "failure", oldText: string, newContent: string): Promise<MemoryResult> {
     oldText = normalizeMemoryLookupText(oldText);
     if (!oldText) return { success: false, error: "old_text cannot be empty." };
     if (!newContent.trim()) return { success: false, error: "new_content cannot be empty. Use 'remove' to delete entries." };
@@ -292,6 +313,10 @@ export class MemoryStore {
   }
 
   async remove(target: "memory" | "user" | "failure", oldText: string): Promise<MemoryResult> {
+    return this.withWriteLock(() => this.removeUnlocked(target, oldText));
+  }
+
+  private async removeUnlocked(target: "memory" | "user" | "failure", oldText: string): Promise<MemoryResult> {
     oldText = normalizeMemoryLookupText(oldText);
     if (!oldText) return { success: false, error: "old_text cannot be empty." };
 

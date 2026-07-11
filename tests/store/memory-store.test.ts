@@ -368,6 +368,26 @@ describe("MemoryStore", { concurrency: 1 }, () => {
       assert.ok(raw.includes(`${TEST_MARKER} first entry`));
       assert.ok(raw.includes(`${TEST_MARKER} second entry`));
     });
+
+    it("serializes 100 concurrent adds without losing entries", async () => {
+      const store = new MemoryStore(makeConfig({ memoryCharLimit: 50000 }));
+      await store.loadFromDisk();
+
+      const results = await Promise.all(
+        Array.from({ length: 100 }, (_, index) => (
+          store.add("memory", `${TEST_MARKER} concurrent-${String(index).padStart(3, "0")}`)
+        )),
+      );
+
+      assert.ok(results.every((result) => result.success));
+      const entries = store.getMemoryEntries().filter((entry) => entry.includes(`${TEST_MARKER} concurrent-`));
+      assert.strictEqual(entries.length, 100);
+      assert.strictEqual(new Set(entries).size, 100);
+      const raw = await readRaw(memoryPath);
+      for (let index = 0; index < 100; index++) {
+        assert.ok(raw.includes(`${TEST_MARKER} concurrent-${String(index).padStart(3, "0")}`));
+      }
+    });
   });
 
   describe("addFailure()", () => {
