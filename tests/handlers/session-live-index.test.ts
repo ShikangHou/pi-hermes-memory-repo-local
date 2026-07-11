@@ -6,6 +6,7 @@ import os from 'node:os';
 import { DatabaseManager } from '../../src/store/db.js';
 import {
   scheduleLiveSessionIndex,
+  setupObservationFlush,
   waitForLiveSessionIndex,
   type SessionLiveIndexState,
 } from '../../src/handlers/session-live-index.js';
@@ -162,6 +163,25 @@ describe('session live indexing handler', () => {
     assert.equal(state.inProgress, false);
     assert.equal(errors.length, 1);
     assert.match(errors[0] instanceof Error ? errors[0].message : String(errors[0]), /boom/);
+  });
+
+  it('flushes raw observations before compaction extraction handlers run', async () => {
+    const handlers: Record<string, Function[]> = {};
+    const pi = { on(event: string, handler: Function) { (handlers[event] ??= []).push(handler); } } as any;
+    const state: SessionLiveIndexState = { inProgress: false, promise: null };
+    const order: string[] = [];
+    const snapshot = createSnapshot([]);
+    setupObservationFlush(pi, dbManager, {
+      state,
+      indexLiveSessionFn: () => { order.push('observe'); return null; },
+    });
+    pi.on('session_before_compact', async () => { order.push('extract'); });
+
+    for (const handler of handlers.session_before_compact) {
+      await handler({}, { sessionManager: snapshot });
+    }
+
+    assert.deepStrictEqual(order, ['observe', 'extract']);
   });
 
   it('repairs corruption and retries live indexing once before reporting an error', async () => {

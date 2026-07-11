@@ -1,5 +1,6 @@
 import type { DatabaseManager } from '../store/db.js';
 import { indexLiveSession } from '../store/session-indexer.js';
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 
 export const SESSION_LIVE_INDEX_DELAY_MS = 50;
 export const SESSION_LIVE_INDEX_SHUTDOWN_TIMEOUT_MS = 5000;
@@ -88,4 +89,19 @@ export async function waitForLiveSessionIndex(
   } finally {
     if (timeout) clearTimeout(timeout);
   }
+}
+
+export function setupObservationFlush(
+  pi: ExtensionAPI,
+  dbManager: DatabaseManager,
+  options: Pick<ScheduleLiveSessionIndexOptions, 'state' | 'indexLiveSessionFn' | 'onError'> = {},
+): void {
+  pi.on('session_before_compact', async (_event, ctx) => {
+    await waitForLiveSessionIndex(SESSION_LIVE_INDEX_SHUTDOWN_TIMEOUT_MS, options.state ?? sessionLiveIndexState);
+    try {
+      (options.indexLiveSessionFn ?? indexLiveSession)(dbManager, ctx.sessionManager);
+    } catch (err) {
+      try { options.onError?.(err); } catch { /* best effort */ }
+    }
+  });
 }

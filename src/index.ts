@@ -29,7 +29,7 @@ import { SkillStore } from "./store/skill-store.js";
 import { DatabaseManager } from "./store/db.js";
 import { indexSession, upsertSessionFileMetadata } from "./store/session-indexer.js";
 import { scheduleSessionBackfill, waitForSessionBackfill, SESSION_BACKFILL_SHUTDOWN_TIMEOUT_MS } from "./handlers/session-backfill.js";
-import { scheduleLiveSessionIndex, waitForLiveSessionIndex, SESSION_LIVE_INDEX_SHUTDOWN_TIMEOUT_MS } from "./handlers/session-live-index.js";
+import { scheduleLiveSessionIndex, setupObservationFlush, waitForLiveSessionIndex, SESSION_LIVE_INDEX_SHUTDOWN_TIMEOUT_MS } from "./handlers/session-live-index.js";
 import { parseSessionFile } from "./store/session-parser.js";
 import { registerMemoryTool } from "./tools/memory-tool.js";
 import { registerSkillTool } from "./tools/skill-tool.js";
@@ -255,8 +255,16 @@ export default function (pi: ExtensionAPI) {
     resolveWorkspaceContext: (cwd) => workspaceContextProvider.refresh(cwd),
   });
 
-  // ── 6. Setup session-end flush ──
-  setupSessionFlush(pi, store, projectStore, config);
+  // ── 6. Setup observation checkpoints before extraction handlers so a
+  // compaction range is durable even when memory extraction fails. ──
+  setupObservationFlush(pi, dbManager, {
+    onError: (err) => console.warn(`⚠️ Pre-compaction observation flush failed: ${err instanceof Error ? err.message : String(err)}`),
+  });
+  const observationCheckpoints = setupObservationCheckpoints(
+    pi,
+    async (cwd) => (await workspaceContextProvider.refresh(cwd))?.id ?? null,
+  );
+  setupSessionFlush(pi, store, projectStore, config, observationCheckpoints);
 
   // ── 7. Setup auto-consolidation (inject consolidator into stores) ──
   store.setConsolidator(async (target, signal) => {
@@ -327,10 +335,6 @@ export default function (pi: ExtensionAPI) {
       return active ? { id: active.id, displayName: active.displayName, memoryDir: active.memoryDir } : null;
     },
   });
-  setupObservationCheckpoints(
-    pi,
-    async (cwd) => (await workspaceContextProvider.refresh(cwd))?.id ?? null,
-  );
 
   // ── 10. Live session indexing ──
   pi.on("message_end", async (_event, ctx) => {

@@ -379,6 +379,37 @@ describe("setupSessionFlush", () => {
     assert.equal(mockPi.execCalls.length, 2, "both events should trigger flush");
   });
 
+  it("extracts a checkpoint range once across duplicate compaction events", async () => {
+    const config = defaultConfig();
+    const range = {
+      compactionId: 'compact-msg-0-msg-1',
+      startEntryId: 'msg-0',
+      endEntryId: 'msg-1',
+      entries: mockBranch(2).map((entry, index) => ({ ...entry, id: `msg-${index}` })),
+    };
+    let offered = false;
+    let consumed = 0;
+    const checkpoints = {
+      getCheckpoint: () => null,
+      getExtractionRange: () => offered ? null : (offered = true, range),
+      markExtractionConsumed: () => { consumed++; },
+    };
+    setupSessionFlush(mockPi.pi, mockStore, null, config, checkpoints);
+    await emitUserTurns(mockPi.handlers, 8);
+    const event = { signal: undefined, branchEntries: range.entries, preparation: { firstKeptEntryId: 'kept' } };
+    const ctx = { sessionManager: { getBranch: () => mockBranch(8) } };
+
+    await emit(mockPi.handlers, "session_before_compact", event, ctx);
+    await emit(mockPi.handlers, "session_before_compact", event, ctx);
+
+    assert.equal(mockPi.execCalls.length, 1);
+    assert.equal(consumed, 1);
+    const message = flushMessage(mockPi.execCalls[0]);
+    assert.ok(message.includes('msg 0'));
+    assert.ok(message.includes('msg 1'));
+    assert.ok(!message.includes('msg 2'));
+  });
+
   it("Passes signal from compact event to exec", async () => {
     const config = defaultConfig();
     setupSessionFlush(mockPi.pi, mockStore, null, config);

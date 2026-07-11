@@ -4,6 +4,7 @@ import {
   MEMORY_CHECKPOINT_CUSTOM_TYPE,
   buildMemoryCheckpoint,
   recoverMemoryCheckpoint,
+  setupObservationCheckpoints,
 } from '../../src/handlers/observation-checkpoint.js';
 
 describe('observation checkpoints', () => {
@@ -44,5 +45,64 @@ describe('observation checkpoints', () => {
     });
     assert.strictEqual(after?.lastCompactionId, 'compact-1');
     assert.strictEqual(after?.compactionPhase, 'after');
+  });
+
+  it('consumes only the compacted range and never offers it twice', async () => {
+    const handlers: Record<string, Function[]> = {};
+    const appended: any[] = [];
+    const pi = {
+      on(event: string, handler: Function) {
+        (handlers[event] ??= []).push(handler);
+      },
+      appendEntry(customType: string, data: unknown) {
+        appended.push({ type: 'custom', customType, data });
+      },
+    } as any;
+    const controller = setupObservationCheckpoints(pi, async () => 'workspace-a');
+    const entries = [
+      { type: 'message', id: 'msg-1' },
+      { type: 'message', id: 'msg-2' },
+      { type: 'message', id: 'msg-3' },
+    ];
+    const event = {
+      branchEntries: entries,
+      preparation: { firstKeptEntryId: 'msg-3', tokensBefore: 120 },
+    };
+    const ctx = { sessionManager: { getEntries: () => entries }, getContextUsage: () => ({ tokens: 35 }) };
+
+    await handlers.session_before_compact[0](event, ctx);
+    const range = controller.getExtractionRange(event);
+    assert.deepStrictEqual(range?.entries.map((entry) => entry.id), ['msg-1', 'msg-2']);
+    controller.markExtractionConsumed(range!);
+
+    assert.strictEqual(controller.getExtractionRange(event), null);
+    assert.strictEqual(controller.getCheckpoint()?.lastExtractedEntryId, 'msg-2');
+    assert.ok(appended.some((entry) => entry.data.compactionPhase === 'before'));
+  });
+
+  it('records the archived range and compaction token delta after compaction', async () => {
+    const handlers: Record<string, Function[]> = {};
+    const appended: any[] = [];
+    const pi = {
+      on(event: string, handler: Function) { (handlers[event] ??= []).push(handler); },
+      appendEntry(customType: string, data: unknown) { appended.push({ customType, data }); },
+    } as any;
+    const controller = setupObservationCheckpoints(pi, async () => 'workspace-a');
+    const entries = [
+      { type: 'message', id: 'msg-1' },
+      { type: 'message', id: 'msg-2' },
+    ];
+    const ctx = { sessionManager: { getEntries: () => entries }, getContextUsage: () => ({ tokens: 35 }) };
+    const before = { branchEntries: entries, preparation: { firstKeptEntryId: 'msg-2', tokensBefore: 100 } };
+    await handlers.session_before_compact[0](before, ctx);
+    const range = controller.getExtractionRange(before)!;
+    controller.markExtractionConsumed(range);
+    await handlers.session_compact[0]({ compactionEntry: { id: 'summary-1', tokensBefore: 100 } }, ctx);
+
+    const after = appended.at(-1).data;
+    assert.strictEqual(after.compactionPhase, 'after');
+    assert.strictEqual(after.archivedStartEntryId, 'msg-1');
+    assert.strictEqual(after.archivedEndEntryId, 'msg-1');
+    assert.strictEqual(after.tokenDelta, 65);
   });
 });

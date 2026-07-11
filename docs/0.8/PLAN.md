@@ -297,6 +297,8 @@ Add commands:
 
 ### Epic 3.1: Separate Observation from Extraction
 
+Status: [x] raw observation is flushed independently before compaction; extraction consumes checkpoint-bounded ranges.
+
 Separate the system into:
 
 ```text
@@ -327,7 +329,7 @@ Archiving must not depend on successful LLM extraction.
 
 ### Epic 3.2: Pi Custom-Entry Checkpoints
 
-Status: [~] checkpoint schema, recovery, per-turn cursor, and compaction boundary entries implemented; extraction-range consumption remains pending.
+Status: [x] checkpoint schema, recovery, per-turn cursor, compaction boundary entries, and extraction-range consumption implemented.
 
 Use Pi custom entries for lightweight cursors:
 
@@ -346,6 +348,8 @@ Do not store complete memories in custom entries.
 
 ### Epic 3.3: Two-Phase Compaction
 
+Status: [x] before/after checkpoints, archived range metadata, token delta, and duplicate-range protection implemented.
+
 ```text
 session_before_compact
   -> flush unobserved messages
@@ -362,10 +366,10 @@ The same compacted message range must never be extracted twice.
 
 ### Acceptance Criteria
 
-- Resuming a session indexes only new messages.
-- Duplicate `message_end` and shutdown events do not duplicate observations.
-- One compaction does not generate duplicate memories.
-- Extraction failure does not affect raw session indexing.
+- [x] Resuming a session indexes only new messages.
+- [x] Duplicate `message_end` and shutdown events do not duplicate observations.
+- [x] One compaction does not generate duplicate memories.
+- [x] Extraction failure does not affect raw session indexing.
 
 ---
 

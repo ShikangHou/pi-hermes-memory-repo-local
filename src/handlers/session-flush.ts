@@ -10,12 +10,14 @@ import { FLUSH_PROMPT } from "../constants.js";
 import type { MemoryConfig } from "../types.js";
 import { collectMessageParts } from "./message-parts.js";
 import { execChildPrompt } from "./pi-child-process.js";
+import type { ObservationCheckpointController } from "./observation-checkpoint.js";
 
 export function setupSessionFlush(
   pi: ExtensionAPI,
   store: MemoryStore,
   projectStore: MemoryStore | null,
   config: MemoryConfig,
+  checkpoints?: ObservationCheckpointController,
 ): void {
   let userTurnCount = 0;
 
@@ -55,6 +57,20 @@ export function setupSessionFlush(
   // Flush before compaction (can afford to wait)
   pi.on("session_before_compact", async (event, ctx) => {
     if (!config.flushOnCompact) return;
+    const range = checkpoints?.getExtractionRange(event as any);
+    if (checkpoints && !range) return;
+    if (range) {
+      // The range is already reserved; pass a stable view to the extractor.
+      const parts = collectMessageParts(range.entries, config.flushRecentMessages);
+      const flushMessage = [FLUSH_PROMPT, "", "--- Conversation ---", parts.join("\n\n")].join("\n");
+      try {
+        await execChildPrompt(pi, flushMessage, config, { signal: event.signal, timeoutMs: 30000 });
+        checkpoints!.markExtractionConsumed(range);
+      } catch {
+        // Observation and compaction continue even when extraction fails.
+      }
+      return;
+    }
     await flush(ctx, event.signal, 30000);
   });
 
