@@ -16,6 +16,8 @@ export interface ProjectInfo {
   rootDir: string | null;
   /** Path to the project-scoped memory directory, or null. */
   memoryDir: string | null;
+  /** Stable Workspace identity for repo-local storage. Never use the display name for isolation. */
+  workspaceId?: string | null;
 }
 
 export interface ProjectSkillInfo extends ProjectInfo {
@@ -84,6 +86,7 @@ export function detectProject(
       name: workspace.displayName,
       rootDir: workspace.rootDir,
       memoryDir: path.join(workspace.rootDir, options.projectMemoryDirName),
+      workspaceId: workspace.workspaceId,
     };
   }
 

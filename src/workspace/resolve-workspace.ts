@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 
-export type WorkspaceSource = "explicit" | "pi-marker" | "git";
+export type WorkspaceSource = "explicit" | "workspace-marker" | "legacy-marker" | "git";
 
 export interface WorkspaceInfo {
   rootDir: string;
@@ -64,9 +65,25 @@ function buildWorkspaceInfo(rootDir: string, source: WorkspaceSource, markerPath
   return {
     rootDir: resolvedRoot,
     displayName: marker?.name ?? path.basename(resolvedRoot),
-    workspaceId: marker?.id ?? resolvedRoot,
+    workspaceId: marker?.id ?? deriveWorkspaceId(resolvedRoot),
     source,
   };
+}
+
+function canonicalizeRoot(rootDir: string): string {
+  const resolved = path.resolve(rootDir);
+  try {
+    return fs.realpathSync.native(resolved);
+  } catch {
+    return resolved;
+  }
+}
+
+/** Stable, opaque fallback identity for a canonical Workspace root. */
+export function deriveWorkspaceId(rootDir: string): string {
+  const canonicalRoot = canonicalizeRoot(rootDir);
+  const normalized = process.platform === "win32" ? canonicalRoot.toLowerCase() : canonicalRoot;
+  return `ws_${createHash("sha256").update(normalized).digest("hex").slice(0, 24)}`;
 }
 
 export function resolveWorkspace(options: WorkspaceResolutionOptions = {}): WorkspaceInfo | null {
@@ -79,7 +96,7 @@ export function resolveWorkspace(options: WorkspaceResolutionOptions = {}): Work
   if (workspaceMarkerRoot) {
     return buildWorkspaceInfo(
       workspaceMarkerRoot,
-      "pi-marker",
+      "workspace-marker",
       path.join(workspaceMarkerRoot, ".pi", "workspace.json"),
     );
   }
@@ -88,7 +105,7 @@ export function resolveWorkspace(options: WorkspaceResolutionOptions = {}): Work
   if (legacyMarkerRoot) {
     return buildWorkspaceInfo(
       legacyMarkerRoot,
-      "pi-marker",
+      "legacy-marker",
       path.join(legacyMarkerRoot, ".pi", "project.json"),
     );
   }

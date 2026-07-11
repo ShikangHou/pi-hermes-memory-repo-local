@@ -37,6 +37,7 @@ describe("project detection", () => {
       assert.strictEqual(result.name, "demo-repo");
       assert.strictEqual(result.rootDir, repo);
       assert.strictEqual(result.memoryDir, path.join(repo, ".pi"));
+      assert.match(result.workspaceId ?? "", /^ws_[a-f0-9]{24}$/);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

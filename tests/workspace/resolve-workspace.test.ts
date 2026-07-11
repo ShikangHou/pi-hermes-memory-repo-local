@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import {
+  deriveWorkspaceId,
   resolveWorkspace,
   resolveWorkspaceIdentity,
   resolveWorkspaceRoot,
@@ -17,7 +18,7 @@ describe("resolveWorkspace", () => {
       assert.deepStrictEqual(result, {
         rootDir: path.resolve(tmp),
         displayName: path.basename(tmp),
-        workspaceId: path.resolve(tmp),
+        workspaceId: deriveWorkspaceId(tmp),
         source: "explicit",
       });
     } finally {
@@ -41,7 +42,7 @@ describe("resolveWorkspace", () => {
       assert.strictEqual(result?.rootDir, root);
       assert.strictEqual(result?.displayName, "Stable Workspace");
       assert.strictEqual(result?.workspaceId, "stable-id");
-      assert.strictEqual(result?.source, "pi-marker");
+      assert.strictEqual(result?.source, "workspace-marker");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -61,7 +62,7 @@ describe("resolveWorkspace", () => {
       assert.strictEqual(result?.rootDir, root);
       assert.strictEqual(result?.displayName, "Legacy Name");
       assert.strictEqual(result?.workspaceId, "legacy-id");
-      assert.strictEqual(result?.source, "pi-marker");
+      assert.strictEqual(result?.source, "legacy-marker");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
@@ -78,8 +79,27 @@ describe("resolveWorkspace", () => {
       const result = resolveWorkspace({ cwd: nested });
       assert.strictEqual(result?.rootDir, root);
       assert.strictEqual(result?.displayName, "repo");
-      assert.strictEqual(result?.workspaceId, root);
+      assert.strictEqual(result?.workspaceId, deriveWorkspaceId(root));
       assert.strictEqual(result?.source, "git");
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  it("isolates same-named Git workspaces by canonical root", () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "workspace-same-name-"));
+    try {
+      const first = path.join(tmp, "one", "repo");
+      const second = path.join(tmp, "two", "repo");
+      fs.mkdirSync(path.join(first, ".git"), { recursive: true });
+      fs.mkdirSync(path.join(second, ".git"), { recursive: true });
+
+      const firstWorkspace = resolveWorkspace({ cwd: first });
+      const secondWorkspace = resolveWorkspace({ cwd: second });
+
+      assert.strictEqual(firstWorkspace?.displayName, "repo");
+      assert.strictEqual(secondWorkspace?.displayName, "repo");
+      assert.notStrictEqual(firstWorkspace?.workspaceId, secondWorkspace?.workspaceId);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

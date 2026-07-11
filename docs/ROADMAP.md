@@ -2,17 +2,17 @@
 
 > From markdown files to a pluggable memory substrate for any Pi agent harness.
 
-## Where We Are (v0.1.0)
+## Where We Are (v0.7.23)
 
-- Persistent memory via `MEMORY.md` + `USER.md` with `§` delimiter
-- Real-time `memory` tool (add / replace / remove) for the LLM
-- Content scanning: prompt injection, role hijacking, secret exfiltration, invisible unicode
-- Background learning loop (every N turns via `pi.exec`)
-- Session flush before compaction and shutdown
-- `/memory-insights` command
-- Frozen snapshot injection into system prompt
-- 119 automated tests, 0 type errors
-- Atomic writes (temp + rename)
+- v0.1-v0.3 capabilities are implemented: Markdown memory, skills, smart curation, interview, context fencing, aging, and Workspace memory.
+- v0.4 adds SQLite FTS5 session search and searchable extended memory.
+- v0.5-v0.6 add categorized failure learning, direct review, Workspace-first context routing, migration, and maintenance hardening.
+- v0.7 defaults to a policy-only system prompt; full Markdown injection is legacy opt-in behavior.
+- The maintained package is currently `0.7.23` and uses global base + current Workspace overlay + live evidence.
+- v0.8 is the active plan: trusted Workspace identity, unified validation, concurrency safety, reconciliation, and optional explainable automatic recall.
+- See [`docs/0.8/PLAN.md`](0.8/PLAN.md) and [`docs/0.8/BASELINE.md`](0.8/BASELINE.md).
+
+> Historical task files for some already-shipped releases were not backfilled and may still contain unchecked boxes. Package code, tests, README, and changelog are the source of truth for shipped behavior.
 
 ---
 
@@ -87,21 +87,30 @@ graph LR
         H[Tool-Call-Aware Nudge]
     end
 
-    subgraph "v0.3 — Next"
+    subgraph "v0.3 ✅"
         I[Memory Interview]
         J[Context Fencing]
         K[Memory Aging]
         L[Project Memory Polish]
     end
 
-    subgraph "v0.4"
+    subgraph "v0.4 ✅"
         M[MemoryBackend Interface]
         N[SQLite + Session Search]
     end
 
-    subgraph "v0.5"
-        O[ExternalSync Interface]
-        P[Mem0 / Honcho]
+    subgraph "v0.5-v0.6 ✅"
+        O[Failure Learning]
+        P[Workspace Context]
+    end
+
+    subgraph "v0.7 ✅"
+        Q[Policy-Only Prompt]
+    end
+
+    subgraph "v0.8 — Current"
+        R[Trust + Stable Workspace ID]
+        S[Consistency + Explainable Recall]
     end
 
     A --> E
@@ -114,6 +123,9 @@ graph LR
     K --> M
     M --> O
     O --> P
+    P --> Q
+    Q --> R
+    R --> S
 ```
 
 ---

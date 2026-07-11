@@ -1,4 +1,5 @@
 export {
+  deriveWorkspaceId,
   findGitRoot,
   findLegacyProjectMarkerRoot,
   findWorkspaceMarkerRoot,
