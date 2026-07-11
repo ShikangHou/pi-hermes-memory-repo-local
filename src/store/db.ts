@@ -379,17 +379,18 @@ export class DatabaseManager {
 
   private copySessions(source: DatabaseLike, target: DatabaseLike): number {
     const insert = target.prepare(`
-      INSERT OR IGNORE INTO sessions (id, project, cwd, started_at, ended_at, message_count)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO sessions (id, project, workspace_id, cwd, started_at, ended_at, message_count)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     let copied = 0;
 
-    for (const row of this.readTableRows(source, 'sessions', ['id', 'project', 'cwd', 'started_at', 'ended_at', 'message_count'])) {
+    for (const row of this.readTableRows(source, 'sessions', ['id', 'project', 'workspace_id', 'cwd', 'started_at', 'ended_at', 'message_count'])) {
       if (typeof row.id !== 'string' || typeof row.cwd !== 'string' || typeof row.started_at !== 'string') continue;
       const project = typeof row.project === 'string' && row.project ? row.project : (path.basename(row.cwd) || 'unknown');
       insert.run(
         row.id,
         project,
+        this.nullableString(row.workspace_id),
         row.cwd,
         row.started_at,
         this.nullableString(row.ended_at),
@@ -450,14 +451,16 @@ export class DatabaseManager {
 
   private copyMemories(source: DatabaseLike, target: DatabaseLike): number {
     const insert = target.prepare(`
-      INSERT OR IGNORE INTO memories (id, project, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO memories (id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     let copied = 0;
 
     for (const row of this.readTableRows(source, 'memories', [
       'id',
       'project',
+      'workspace_id',
+      'workspace_name',
       'target',
       'category',
       'content',
@@ -478,6 +481,8 @@ export class DatabaseManager {
       insert.run(
         id,
         this.nullableString(row.project),
+        this.nullableString(row.workspace_id),
+        this.nullableString(row.workspace_name),
         targetName,
         category,
         row.content,
@@ -596,6 +601,9 @@ export class DatabaseManager {
     return msg.includes('no such column: category')
       || msg.includes('memories(category)')
       || msg.includes('no such column: project')
+      || msg.includes('no such column: workspace_id')
+      || msg.includes('memories(workspace_id)')
+      || msg.includes('sessions(workspace_id)')
       || msg.includes('sessions(project)')
       || msg.includes('memories(project)');
   }
@@ -613,6 +621,12 @@ export class DatabaseManager {
 
     if (!names.has('project')) {
       db.exec('ALTER TABLE memories ADD COLUMN project TEXT');
+    }
+    if (!names.has('workspace_id')) {
+      db.exec('ALTER TABLE memories ADD COLUMN workspace_id TEXT');
+    }
+    if (!names.has('workspace_name')) {
+      db.exec('ALTER TABLE memories ADD COLUMN workspace_name TEXT');
     }
     if (!names.has('category')) {
       db.exec('ALTER TABLE memories ADD COLUMN category TEXT');
@@ -635,6 +649,9 @@ export class DatabaseManager {
     const names = this.getColumnNames(db, 'sessions');
     if (!names.has('project')) {
       db.exec('ALTER TABLE sessions ADD COLUMN project TEXT');
+    }
+    if (!names.has('workspace_id')) {
+      db.exec('ALTER TABLE sessions ADD COLUMN workspace_id TEXT');
     }
 
     this.backfillSessionsProject(db);
@@ -679,6 +696,8 @@ export class DatabaseManager {
           CREATE TABLE memories_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             project TEXT,
+            workspace_id TEXT,
+            workspace_name TEXT,
             target TEXT NOT NULL CHECK (target IN ('memory', 'user', 'failure')),
             category TEXT CHECK (category IN ('failure', 'correction', 'insight', 'preference', 'convention', 'tool-quirk')),
             content TEXT NOT NULL,
@@ -691,8 +710,8 @@ export class DatabaseManager {
         `);
 
         db.exec(`
-          INSERT INTO memories_new (id, project, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-          SELECT id, project, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
+          INSERT INTO memories_new (id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+          SELECT id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
           FROM memories;
         `);
 
@@ -713,6 +732,8 @@ export class DatabaseManager {
         CREATE TABLE memories_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           project TEXT,
+          workspace_id TEXT,
+          workspace_name TEXT,
           target TEXT NOT NULL CHECK (target IN ('memory', 'user', 'failure')),
           category TEXT CHECK (category IN ('failure', 'correction', 'insight', 'preference', 'convention', 'tool-quirk')),
           content TEXT NOT NULL,
@@ -725,8 +746,8 @@ export class DatabaseManager {
       `);
 
       db.exec(`
-          INSERT INTO memories_new (id, project, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-          SELECT id, project, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
+          INSERT INTO memories_new (id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+          SELECT id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
           FROM memories;
         `);
 

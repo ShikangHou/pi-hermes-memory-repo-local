@@ -37,7 +37,6 @@ Returns matching memory entries with workspace context and dates.`,
     parameters: Type.Object({
       query: Type.String({ description: 'Search query. Use natural language or specific terms.' }),
       scope: Type.Optional(StringEnum(['global', 'workspace', 'all', 'project'] as const, { description: "Search scope. Default 'all' means Global plus Current Workspace. Legacy 'project' is an alias for 'workspace'." })),
-      project: Type.Optional(Type.String({ description: 'Legacy exact project filter. Prefer scope instead.' })),
       target: Type.Optional(StringEnum(['memory', 'user', 'failure'] as const, { description: 'Filter by target type (memory, user, or failure).' })),
       category: Type.Optional(StringEnum(['failure', 'correction', 'insight', 'preference', 'convention', 'tool-quirk'] as const, { description: 'Filter by memory category.' })),
       limit: Type.Optional(Type.Number({ description: 'Maximum results to return (default: 10, max: 20).' })),
@@ -54,6 +53,14 @@ Returns matching memory entries with workspace context and dates.`,
         return { content: [{ type: 'text' as const, text: result.message! }], details: result };
       }
 
+      if (args.project !== undefined) {
+        const result: SearchResult = {
+          success: false,
+          message: "The legacy project filter is no longer accepted. Use scope='workspace'; the active Workspace ID is resolved from the Pi runtime.",
+        };
+        return { content: [{ type: 'text' as const, text: result.message! }], details: result };
+      }
+
       const stats = getMemoryStats(dbManager);
       if (stats.total === 0) {
         const result: SearchResult = { success: false, message: 'No memories in extended store yet. Use the memory tool with add action to store memories.' };
@@ -62,17 +69,15 @@ Returns matching memory entries with workspace context and dates.`,
 
       const workspaceId = currentWorkspaceId?.trim() || null;
       const searchOptions = { target, category, limit };
-      const results = args.project !== undefined
-        ? searchMemories(dbManager, query, { ...searchOptions, project: args.project, limit })
-        : scope === 'global'
+      const results = scope === 'global'
           ? searchMemories(dbManager, query, { ...searchOptions, project: null, limit })
           : scope === 'workspace'
             ? workspaceId
-              ? searchMemories(dbManager, query, { ...searchOptions, project: workspaceId, limit })
+              ? searchMemories(dbManager, query, { ...searchOptions, workspaceId, limit })
               : []
             : [
                 ...searchMemories(dbManager, query, { ...searchOptions, project: null, limit }),
-                ...(workspaceId ? searchMemories(dbManager, query, { ...searchOptions, project: workspaceId, limit }) : []),
+                ...(workspaceId ? searchMemories(dbManager, query, { ...searchOptions, workspaceId, limit }) : []),
               ].slice(0, limit);
 
       if (results.length === 0) {

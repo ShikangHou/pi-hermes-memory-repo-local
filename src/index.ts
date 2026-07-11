@@ -136,7 +136,15 @@ export default function (pi: ExtensionAPI) {
   // remain in place while entries are copied/merged into projects-memory/.
   migrateLegacyProjectMemoryDirs(agentRoot, config.projectsMemoryDir);
   try {
-    syncMarkdownMemoriesToSqlite(dbManager, globalDir, config.projectsMemoryDir, agentRoot);
+    syncMarkdownMemoriesToSqlite(
+      dbManager,
+      globalDir,
+      config.projectsMemoryDir,
+      agentRoot,
+      project.memoryDir && project.workspaceId && project.name
+        ? { id: project.workspaceId, name: project.name, memoryDir: project.memoryDir }
+        : null,
+    );
   } catch {
     // Best-effort only: failed SQLite backfill should not block extension startup.
   }
@@ -194,7 +202,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // ── 3. Register the memory tool (with project store + SQLite sync) ──
-  registerMemoryTool(pi, store, projectStore, dbManager, projectName);
+  registerMemoryTool(pi, store, projectStore, dbManager, projectName, project.workspaceId);
 
   // ── 4. Register the skill tool ──
   registerSkillTool(pi, skillStore);
@@ -203,6 +211,7 @@ export default function (pi: ExtensionAPI) {
   setupBackgroundReview(pi, store, projectStore, config, {
     dbManager,
     projectName: projectName || null,
+    workspaceId: project.workspaceId ?? null,
   });
 
   // ── 6. Setup session-end flush ──
@@ -221,7 +230,7 @@ export default function (pi: ExtensionAPI) {
   registerConsolidateCommand(pi, store, config.consolidationTimeoutMs, projectStore, projectName, config);
 
   // ── 8. Setup correction detection ──
-  setupCorrectionDetector(pi, store, projectStore, config, dbManager, projectName);
+  setupCorrectionDetector(pi, store, projectStore, config, dbManager, projectName, project.workspaceId);
 
   // ── 9. Register commands ──
   registerInsightsCommand(pi, store, projectStore, projectName);
@@ -229,7 +238,16 @@ export default function (pi: ExtensionAPI) {
   registerInterviewCommand(pi, store);
   registerSwitchProjectCommand(pi, config);
   registerLearnMemoryCommand(pi);
-  registerSyncMarkdownMemoriesCommand(pi, dbManager, globalDir, config.projectsMemoryDir, agentRoot);
+  registerSyncMarkdownMemoriesCommand(
+    pi,
+    dbManager,
+    globalDir,
+    config.projectsMemoryDir,
+    agentRoot,
+    project.memoryDir && project.workspaceId && project.name
+      ? { id: project.workspaceId, name: project.name, memoryDir: project.memoryDir }
+      : null,
+  );
   registerPreviewContextCommand(pi, store, projectStore, projectName, config);
   registerContextCommands(pi, { agentRoot, globalDir, config });
 
@@ -242,7 +260,7 @@ export default function (pi: ExtensionAPI) {
 
   // ── 11. SQLite session search + extended memory ──
   registerSessionSearchTool(pi, dbManager, config.sessionSearch ?? { variant: "legacy" });
-  registerMemorySearchTool(pi, dbManager, projectName || null);
+  registerMemorySearchTool(pi, dbManager, project.workspaceId ?? null);
   registerIndexSessionsCommand(pi);
 
   // ── 12. Auto-index session on shutdown ──

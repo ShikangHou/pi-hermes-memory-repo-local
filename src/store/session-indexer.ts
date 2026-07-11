@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import { DatabaseManager } from './db.js';
 import { parseSessionFile, getSessionFiles, type ParsedSession } from './session-parser.js';
+import { resolveWorkspace } from '../workspace/index.js';
 
 export const LAST_SESSION_BACKFILL_KEY = 'last_session_backfill';
 export const SESSION_BACKFILL_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -48,13 +49,14 @@ export function indexSession(dbManager: DatabaseManager, session: ParsedSession)
 
 function indexSessionOnce(dbManager: DatabaseManager, session: ParsedSession): IndexResult {
   const db = dbManager.getDb();
+  const workspaceId = resolveWorkspace({ cwd: session.cwd })?.workspaceId ?? null;
 
   const existingSession = db.prepare('SELECT id FROM sessions WHERE id = ?').get(session.id) as { id: string } | undefined;
   const before = db.prepare('SELECT COUNT(*) as count FROM messages WHERE session_id = ?').get(session.id) as { count: number };
 
   const insertSession = db.prepare(`
-    INSERT OR IGNORE INTO sessions (id, project, cwd, started_at, ended_at, message_count)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO sessions (id, project, workspace_id, cwd, started_at, ended_at, message_count)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMsg = db.prepare(`
@@ -65,6 +67,7 @@ function indexSessionOnce(dbManager: DatabaseManager, session: ParsedSession): I
   const updateSession = db.prepare(`
     UPDATE sessions
     SET project = ?,
+        workspace_id = ?,
         cwd = ?,
         ended_at = COALESCE(?, ended_at),
         message_count = (SELECT COUNT(*) FROM messages WHERE session_id = ?)
@@ -75,6 +78,7 @@ function indexSessionOnce(dbManager: DatabaseManager, session: ParsedSession): I
     insertSession.run(
       session.id,
       session.project,
+      workspaceId,
       session.cwd,
       session.startedAt,
       session.endedAt,
@@ -92,7 +96,7 @@ function indexSessionOnce(dbManager: DatabaseManager, session: ParsedSession): I
       );
     }
 
-    updateSession.run(session.project, session.cwd, session.endedAt, session.id, session.id);
+    updateSession.run(session.project, workspaceId, session.cwd, session.endedAt, session.id, session.id);
   };
 
   if (db.transaction) {

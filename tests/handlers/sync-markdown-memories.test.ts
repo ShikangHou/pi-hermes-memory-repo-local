@@ -181,6 +181,32 @@ describe('memory sqlite sync + markdown backfill', () => {
     assert.strictEqual(results[0].content, 'latest path searchable entry');
   });
 
+  it('backfills the active repo-local Workspace with its stable ID', () => {
+    const memoryDir = path.join(tmpDir, 'repo', '.pi');
+    fs.mkdirSync(memoryDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(memoryDir, 'MEMORY.md'),
+      'repo-local searchable entry <!-- created=2026-07-11, last=2026-07-11 -->',
+      'utf-8',
+    );
+
+    const counters = syncMarkdownMemoriesToSqlite(
+      dbManager,
+      globalDir,
+      undefined,
+      agentRoot,
+      { id: 'ws_repo_local', name: 'repo', memoryDir },
+    );
+
+    assert.strictEqual(counters.imported, 1);
+    const results = searchMemories(dbManager, 'repo-local searchable entry', {
+      workspaceId: 'ws_repo_local',
+      target: 'memory',
+    });
+    assert.strictEqual(results.length, 1);
+    assert.strictEqual(results[0].workspaceName, 'repo');
+  });
+
   it('still scans project markdown under ~/.pi/agent when memoryDir is customized elsewhere', () => {
     const customGlobalDir = path.join(tmpDir, 'external-memory-root');
     fs.mkdirSync(customGlobalDir, { recursive: true });

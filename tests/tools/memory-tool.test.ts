@@ -267,6 +267,29 @@ describe("registerMemoryTool", () => {
     assert.strictEqual(results[0].content, 'Project entry');
   });
 
+  it('writes Workspace memory using the runtime-provided stable ID', async () => {
+    let capturedResult: any;
+    const mockPi = { registerTool: (def: any) => { capturedResult = def; } } as any;
+    const mockProjectStore = {
+      add: async () => ({ success: true, entries: ['Stable Workspace entry'], entry_count: 1 }),
+      getMemoryEntries: () => [],
+    } as unknown as MemoryStore;
+
+    registerMemoryTool(mockPi, {} as MemoryStore, mockProjectStore, dbManager, 'repo', 'ws_repo');
+    await capturedResult.execute(
+      'tc-1',
+      { action: 'add', scope: 'workspace', target: 'memory', content: 'Stable Workspace entry' },
+      undefined as any,
+      undefined as any,
+      undefined as any,
+    );
+
+    const scoped = getMemories(dbManager, { workspaceId: 'ws_repo' });
+    assert.strictEqual(scoped.length, 1);
+    assert.strictEqual(scoped[0].project, 'repo');
+    assert.strictEqual(scoped[0].workspaceName, 'repo');
+  });
+
   it("replaces conflicting package-manager memory instead of appending", async () => {
     let capturedResult: any;
     const mockPi = {

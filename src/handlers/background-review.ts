@@ -19,6 +19,7 @@ import { runDirectBackgroundReview, type DirectReviewResult } from "./review-mem
 export interface BackgroundReviewOptions {
   dbManager?: DatabaseManager | null;
   projectName?: string | null;
+  workspaceId?: string | null;
   deps?: BackgroundReviewDeps;
 }
 
@@ -122,6 +123,7 @@ export function setupBackgroundReview(
 ): void {
   const dbManager = options.dbManager ?? null;
   const projectName = options.projectName ?? null;
+  const workspaceId = options.workspaceId ?? null;
   const runDirectReview = options.deps?.runDirectReview ?? runDirectBackgroundReview;
   const execChild = options.deps?.execChildPrompt ?? execChildPrompt;
 
@@ -211,6 +213,7 @@ export function setupBackgroundReview(
           { userPrompt: directPrompt, config, timeoutMs: 120000 },
           dbManager,
           projectName,
+          workspaceId,
         );
 
         if (directResult.ok) {

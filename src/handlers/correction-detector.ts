@@ -129,6 +129,7 @@ export function setupCorrectionDetector(
   config: MemoryConfig,
   dbManager: DatabaseManager | null = null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): void {
   if (!config.correctionDetection) return;
 
@@ -242,6 +243,8 @@ export function setupCorrectionDetector(
                 }),
                 target: "failure",
                 project: scopedProjectName,
+                workspaceId: projectStore ? workspaceId?.trim() || undefined : null,
+                workspaceName: scopedProjectName,
                 category: "correction",
                 failureReason,
               });

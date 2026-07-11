@@ -6,6 +6,8 @@ import type { MemoryCategory } from '../types.js';
 const MEMORY_SELECT_COLUMNS = `
   id,
   project,
+  workspace_id,
+  workspace_name,
   target,
   category,
   content,
@@ -31,6 +33,8 @@ const FAILURE_CATEGORY_SET = new Set<MemoryCategory>([
 export interface SqliteMemoryEntry {
   id: number;
   project: string | null;
+  workspaceId: string | null;
+  workspaceName: string | null;
   target: 'memory' | 'user' | 'failure';
   category: MemoryCategory | null;
   content: string;
@@ -45,6 +49,8 @@ export interface SqliteMemorySyncInput {
   content: string;
   target: 'memory' | 'user' | 'failure';
   project?: string | null;
+  workspaceId?: string | null;
+  workspaceName?: string | null;
   category?: MemoryCategory | null;
   failureReason?: string | null;
   toolState?: string | null;
@@ -72,6 +78,7 @@ export interface SqliteMemoryRemoveResult {
 export interface SqliteMemoryRemoveOptions {
   target: 'memory' | 'user' | 'failure';
   project?: string | null;
+  workspaceId?: string | null;
 }
 
 export interface ParsedMarkdownMemoryEntry extends SqliteMemorySyncInput {}
@@ -93,6 +100,8 @@ function normalizeCategory(value?: MemoryCategory | null): MemoryCategory | null
 function mapRow(row: {
   id: number;
   project: string | null;
+  workspace_id?: string | null;
+  workspace_name?: string | null;
   target: string;
   category: string | null;
   content: string;
@@ -105,6 +114,8 @@ function mapRow(row: {
   return {
     id: row.id,
     project: row.project,
+    workspaceId: row.workspace_id ?? null,
+    workspaceName: row.workspace_name ?? null,
     target: row.target as 'memory' | 'user' | 'failure',
     category: row.category as MemoryCategory | null,
     content: row.content,
@@ -116,7 +127,13 @@ function mapRow(row: {
   };
 }
 
-function buildScopeConditions(params: unknown[], target?: string, project?: string | null, category?: MemoryCategory | null): string[] {
+function buildScopeConditions(
+  params: unknown[],
+  target?: string,
+  project?: string | null,
+  category?: MemoryCategory | null,
+  workspaceId?: string | null,
+): string[] {
   const conditions: string[] = [];
 
   if (target) {
@@ -124,7 +141,14 @@ function buildScopeConditions(params: unknown[], target?: string, project?: stri
     params.push(target);
   }
 
-  if (project !== undefined) {
+  if (workspaceId !== undefined) {
+    if (workspaceId === null) {
+      conditions.push('workspace_id IS NULL');
+    } else {
+      conditions.push('workspace_id = ?');
+      params.push(workspaceId);
+    }
+  } else if (project !== undefined) {
     if (project === null) {
       conditions.push('project IS NULL');
     } else {
@@ -210,18 +234,22 @@ export function addMemory(
   toolState: string | null = null,
   correctedTo: string | null = null,
   created = today(),
-  lastReferenced = created
+  lastReferenced = created,
+  workspaceId: string | null = null,
+  workspaceName: string | null = null,
 ): SqliteMemoryEntry {
   const db = dbManager.getDb();
 
   const result = db.prepare(`
-    INSERT INTO memories (project, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(project, target, category, content, failureReason, toolState, correctedTo, created, lastReferenced);
+    INSERT INTO memories (project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(project, workspaceId, workspaceName, target, category, content, failureReason, toolState, correctedTo, created, lastReferenced);
 
   return {
     id: Number(result.lastInsertRowid),
     project,
+    workspaceId,
+    workspaceName,
     target,
     category,
     content,
@@ -327,6 +355,8 @@ export function syncMemoryEntry(
   const db = dbManager.getDb();
   const content = input.content.trim();
   const project = normalizeNullable(input.project);
+  const workspaceId = normalizeNullable(input.workspaceId);
+  const workspaceName = normalizeNullable(input.workspaceName);
   const category = normalizeCategory(input.category);
   const failureReason = normalizeNullable(input.failureReason);
   const toolState = normalizeNullable(input.toolState);
@@ -335,7 +365,13 @@ export function syncMemoryEntry(
   const lastReferenced = input.lastReferenced?.trim() || created;
 
   const params: unknown[] = [];
-  const conditions = buildScopeConditions(params, input.target, project, category);
+  const conditions = buildScopeConditions(
+    params,
+    input.target,
+    project,
+    category,
+    input.workspaceId === undefined ? undefined : workspaceId,
+  );
   conditions.push('content = ?');
   params.push(content);
 
@@ -372,6 +408,8 @@ export function syncMemoryEntry(
         correctedTo,
         created,
         lastReferenced,
+        workspaceId,
+        workspaceName,
       ),
     };
   }
@@ -414,6 +452,7 @@ export function replaceSyncedMemories(
     content: string;
     target: 'memory' | 'user' | 'failure';
     project?: string | null;
+    workspaceId?: string | null;
     category?: MemoryCategory | null;
     failureReason?: string | null;
     toolState?: string | null;
@@ -425,7 +464,7 @@ export function replaceSyncedMemories(
   const normalizedOldText = normalizeMemoryLookupText(oldText);
   if (!normalizedOldText) return { matched: 0, updated: 0, entries: [] };
   const params: unknown[] = [];
-  const conditions = buildScopeConditions(params, updates.target, updates.project ?? undefined);
+  const conditions = buildScopeConditions(params, updates.target, updates.project ?? undefined, undefined, updates.workspaceId);
   conditions.push(`content LIKE ? ESCAPE '\\'`);
   params.push(`%${escapeLikePattern(normalizedOldText)}%`);
 
@@ -496,7 +535,7 @@ export function removeSyncedMemories(
   const normalizedOldText = normalizeMemoryLookupText(oldText);
   if (!normalizedOldText) return { matched: 0, removed: 0 };
   const params: unknown[] = [];
-  const conditions = buildScopeConditions(params, options.target, options.project ?? undefined);
+  const conditions = buildScopeConditions(params, options.target, options.project ?? undefined, undefined, options.workspaceId);
   conditions.push(`content LIKE ? ESCAPE '\\'`);
   params.push(`%${escapeLikePattern(normalizedOldText)}%`);
 
@@ -532,7 +571,7 @@ export function removeExactSyncedMemories(
 ): SqliteMemoryRemoveResult {
   const db = dbManager.getDb();
   const params: unknown[] = [];
-  const conditions = buildScopeConditions(params, options.target, options.project ?? undefined);
+  const conditions = buildScopeConditions(params, options.target, options.project ?? undefined, undefined, options.workspaceId);
   conditions.push('content = ?');
   params.push(content.trim());
 
@@ -562,14 +601,14 @@ export function removeExactSyncedMemories(
 export function searchMemories(
   dbManager: DatabaseManager,
   query: string,
-  options: { project?: string | null; target?: string; category?: MemoryCategory; limit?: number } = {}
+  options: { project?: string | null; workspaceId?: string | null; target?: string; category?: MemoryCategory; limit?: number } = {}
 ): SqliteMemoryEntry[] {
   if (query.trim().length === 0) {
     return [];
   }
 
   const db = dbManager.getDb();
-  const { project, target, category, limit = 10 } = options;
+  const { project, workspaceId, target, category, limit = 10 } = options;
 
   const conditions: string[] = [];
   const params: unknown[] = [];
@@ -587,7 +626,14 @@ export function searchMemories(
     conditions.push('m.id IN (SELECT rowid FROM memory_fts WHERE memory_fts MATCH ?)');
     params.push(matchQuery);
 
-    if (project !== undefined) {
+    if (workspaceId !== undefined) {
+      if (workspaceId === null) {
+        conditions.push('m.workspace_id IS NULL');
+      } else {
+        conditions.push('m.workspace_id = ?');
+        params.push(workspaceId);
+      }
+    } else if (project !== undefined) {
       if (project === null) {
         conditions.push('m.project IS NULL');
       } else {
@@ -657,15 +703,22 @@ export function searchMemories(
  */
 export function getMemories(
   dbManager: DatabaseManager,
-  options: { project?: string | null; target?: string; category?: MemoryCategory } = {}
+  options: { project?: string | null; workspaceId?: string | null; target?: string; category?: MemoryCategory } = {}
 ): SqliteMemoryEntry[] {
   const db = dbManager.getDb();
-  const { project, target, category } = options;
+  const { project, workspaceId, target, category } = options;
 
   const conditions: string[] = [];
   const params: unknown[] = [];
 
-  if (project !== undefined) {
+  if (workspaceId !== undefined) {
+    if (workspaceId === null) {
+      conditions.push('workspace_id IS NULL');
+    } else {
+      conditions.push('workspace_id = ?');
+      params.push(workspaceId);
+    }
+  } else if (project !== undefined) {
     if (project === null) {
       conditions.push('project IS NULL');
     } else {

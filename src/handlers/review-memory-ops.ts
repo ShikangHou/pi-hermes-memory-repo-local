@@ -216,6 +216,13 @@ function sqliteTargetFor(rawTarget: ReviewMemoryOperation["target"]): "memory" |
   return rawTarget === "user" ? "user" : rawTarget === "failure" ? "failure" : "memory";
 }
 
+function sqliteWorkspaceIdFor(
+  rawTarget: ReviewMemoryOperation["target"],
+  workspaceId?: string | null,
+): string | null | undefined {
+  return rawTarget === "project" ? workspaceId?.trim() || undefined : null;
+}
+
 async function syncAdd(
   rawTarget: ReviewMemoryOperation["target"],
   content: string,
@@ -223,6 +230,7 @@ async function syncAdd(
   failureReason: string | undefined,
   dbManager: DatabaseManager | null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): Promise<void> {
   if (!dbManager) return;
 
@@ -238,6 +246,8 @@ async function syncAdd(
       }),
       target: "failure",
       project: sqliteProject ?? null,
+      workspaceId: sqliteWorkspaceIdFor(rawTarget, workspaceId),
+      workspaceName: null,
       category: failureCategory,
       failureReason,
     });
@@ -248,6 +258,8 @@ async function syncAdd(
     content,
     target: sqliteTarget,
     project: sqliteProject ?? null,
+    workspaceId: sqliteWorkspaceIdFor(rawTarget, workspaceId),
+    workspaceName: rawTarget === "project" ? projectName?.trim() || null : null,
   });
 }
 
@@ -257,12 +269,14 @@ async function syncReplace(
   newContent: string,
   dbManager: DatabaseManager | null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): Promise<void> {
   if (!dbManager) return;
   replaceSyncedMemories(dbManager, oldText, {
     content: newContent,
     target: sqliteTargetFor(rawTarget),
     project: sqliteProjectFor(rawTarget, projectName),
+    workspaceId: sqliteWorkspaceIdFor(rawTarget, workspaceId),
   });
 }
 
@@ -271,11 +285,13 @@ async function syncRemove(
   oldText: string,
   dbManager: DatabaseManager | null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): Promise<void> {
   if (!dbManager) return;
   removeSyncedMemories(dbManager, oldText, {
     target: sqliteTargetFor(rawTarget),
     project: sqliteProjectFor(rawTarget, projectName),
+    workspaceId: sqliteWorkspaceIdFor(rawTarget, workspaceId),
   });
 }
 
@@ -284,6 +300,7 @@ async function syncEvictions(
   evictedEntries: string[] | undefined,
   dbManager: DatabaseManager | null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): Promise<void> {
   if (!dbManager || !evictedEntries?.length) return;
   for (const entry of evictedEntries) {
@@ -291,6 +308,7 @@ async function syncEvictions(
       removeExactSyncedMemories(dbManager, entry, {
         target: sqliteTargetFor(rawTarget),
         project: sqliteProjectFor(rawTarget, projectName),
+        workspaceId: sqliteWorkspaceIdFor(rawTarget, workspaceId),
       });
     } catch {
       // best effort
@@ -304,6 +322,7 @@ export async function applyReviewOperations(
   operations: ReviewMemoryOperation[],
   dbManager: DatabaseManager | null = null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): Promise<ApplyReviewOperationsResult> {
   let appliedCount = 0;
   let skippedCount = 0;
@@ -332,7 +351,7 @@ export async function applyReviewOperations(
             failureReason: op.failure_reason,
           });
           if (result.success) {
-            await syncAdd(rawTarget, op.content, category, op.failure_reason, dbManager, projectName);
+            await syncAdd(rawTarget, op.content, category, op.failure_reason, dbManager, projectName, workspaceId);
             appliedCount++;
           } else {
             skippedCount++;
@@ -340,8 +359,8 @@ export async function applyReviewOperations(
         } else {
           result = await activeStore.add(memoryTarget, op.content);
           if (result.success) {
-            await syncEvictions(rawTarget, result.evicted_entries, dbManager, projectName);
-            await syncAdd(rawTarget, op.content, undefined, undefined, dbManager, projectName);
+            await syncEvictions(rawTarget, result.evicted_entries, dbManager, projectName, workspaceId);
+            await syncAdd(rawTarget, op.content, undefined, undefined, dbManager, projectName, workspaceId);
             appliedCount++;
           } else {
             skippedCount++;
@@ -356,7 +375,7 @@ export async function applyReviewOperations(
         }
         result = await activeStore.replace(memoryTarget, op.old_text, op.content);
         if (result.success) {
-          await syncReplace(rawTarget, op.old_text, op.content, dbManager, projectName);
+          await syncReplace(rawTarget, op.old_text, op.content, dbManager, projectName, workspaceId);
           appliedCount++;
         } else {
           skippedCount++;
@@ -370,7 +389,7 @@ export async function applyReviewOperations(
         }
         result = await activeStore.remove(memoryTarget, op.old_text);
         if (result.success) {
-          await syncRemove(rawTarget, op.old_text, dbManager, projectName);
+          await syncRemove(rawTarget, op.old_text, dbManager, projectName, workspaceId);
           appliedCount++;
         } else {
           skippedCount++;
@@ -402,6 +421,7 @@ export async function runDirectBackgroundReview(
   options: RunDirectBackgroundReviewOptions,
   dbManager: DatabaseManager | null = null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): Promise<DirectReviewResult> {
   const model = resolveReviewModel(ctx.model, ctx.modelRegistry, options.config);
   if (!model) {
@@ -463,6 +483,7 @@ export async function runDirectBackgroundReview(
       operations,
       dbManager,
       projectName,
+      workspaceId,
     );
     return { ok: true, appliedCount };
   } catch (err) {

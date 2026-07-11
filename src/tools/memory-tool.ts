@@ -61,6 +61,8 @@ interface ResolvedMemoryRoute {
   scope: "global" | "workspace";
   target: "memory" | "user" | "failure";
   sqliteProject: string | null;
+  sqliteWorkspaceId: string | null | undefined;
+  sqliteWorkspaceName: string | null;
   legacyProjectTarget: boolean;
 }
 
@@ -68,6 +70,7 @@ function normalizeMemoryRoute(
   rawTarget: MemoryToolTarget,
   rawScope: MemoryToolScope | undefined,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): ResolvedMemoryRoute {
   const scope = rawTarget === "project"
     ? "workspace"
@@ -76,11 +79,14 @@ function normalizeMemoryRoute(
       : rawScope ?? "global";
   const target = rawTarget === "project" ? "memory" : rawTarget;
   const sqliteProject = scope === "workspace" ? projectName?.trim() || null : null;
+  const sqliteWorkspaceId = scope === "workspace" ? workspaceId?.trim() || undefined : null;
 
   return {
     scope,
     target,
     sqliteProject,
+    sqliteWorkspaceId,
+    sqliteWorkspaceName: sqliteProject,
     legacyProjectTarget: rawTarget === "project",
   };
 }
@@ -104,6 +110,8 @@ async function syncAddToSqlite(
         }),
         target: "failure",
         project: route.sqliteProject,
+        workspaceId: route.sqliteWorkspaceId,
+        workspaceName: route.sqliteWorkspaceName,
         category: failureCategory,
         failureReason,
       });
@@ -114,6 +122,8 @@ async function syncAddToSqlite(
       content,
       target: route.target,
       project: route.sqliteProject,
+      workspaceId: route.sqliteWorkspaceId,
+      workspaceName: route.sqliteWorkspaceName,
     });
     return null;
   } catch (err) {
@@ -134,6 +144,7 @@ async function syncReplaceToSqlite(
       content: newContent,
       target: route.target,
       project: route.sqliteProject,
+      workspaceId: route.sqliteWorkspaceId,
     });
 
     if (syncResult.matched === 0) {
@@ -157,6 +168,7 @@ async function syncRemoveFromSqlite(
     const syncResult = removeSyncedMemories(dbManager, oldText, {
       target: route.target,
       project: route.sqliteProject,
+      workspaceId: route.sqliteWorkspaceId,
     });
 
     if (syncResult.matched === 0) {
@@ -182,6 +194,7 @@ async function syncEvictionsFromSqlite(
       removeExactSyncedMemories(dbManager, entry, {
         target: route.target,
         project: route.sqliteProject,
+        workspaceId: route.sqliteWorkspaceId,
       });
     } catch {
       // FIFO already updated the Markdown source of truth. SQLite is only a
@@ -196,6 +209,7 @@ export function registerMemoryTool(
   projectStore: MemoryStore | null,
   dbManager: DatabaseManager | null = null,
   projectName?: string | null,
+  workspaceId?: string | null,
 ): void {
   pi.registerTool({
     name: "memory",
@@ -244,7 +258,7 @@ export function registerMemoryTool(
         category?: MemoryCategory;
         failure_reason?: string;
       };
-      const route = normalizeMemoryRoute(rawTarget, rawScope, projectName);
+      const route = normalizeMemoryRoute(rawTarget, rawScope, projectName, workspaceId);
 
       const activeStore = route.scope === "workspace" ? projectStore : store;
 

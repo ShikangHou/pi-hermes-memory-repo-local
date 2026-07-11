@@ -87,6 +87,31 @@ describe('sqlite-memory-store', () => {
       assert.strictEqual(results[0].target, 'memory');
     });
 
+    it('isolates same-named Workspaces by stable Workspace ID', () => {
+      syncMemoryEntry(dbManager, {
+        content: 'first repository convention',
+        target: 'memory',
+        project: 'repo',
+        workspaceId: 'ws_first',
+        workspaceName: 'repo',
+      });
+      syncMemoryEntry(dbManager, {
+        content: 'second repository convention',
+        target: 'memory',
+        project: 'repo',
+        workspaceId: 'ws_second',
+        workspaceName: 'repo',
+      });
+
+      const first = getMemories(dbManager, { workspaceId: 'ws_first' });
+      const second = getMemories(dbManager, { workspaceId: 'ws_second' });
+
+      assert.deepStrictEqual(first.map((entry) => entry.content), ['first repository convention']);
+      assert.deepStrictEqual(second.map((entry) => entry.content), ['second repository convention']);
+      assert.strictEqual(first[0].workspaceName, 'repo');
+      assert.strictEqual(second[0].workspaceName, 'repo');
+    });
+
     it('preserves failure category metadata', () => {
       syncMemoryEntry(dbManager, {
         content: formatFailureMemoryContent('pnpm lockfile mismatch', {

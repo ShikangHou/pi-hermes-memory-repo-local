@@ -21,6 +21,7 @@ export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     project TEXT NOT NULL,
+    workspace_id TEXT,
     cwd TEXT NOT NULL,
     started_at TEXT NOT NULL,
     ended_at TEXT,
@@ -72,6 +73,8 @@ export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project TEXT,
+    workspace_id TEXT,
+    workspace_name TEXT,
     target TEXT NOT NULL CHECK (target IN ('memory', 'user', 'failure')),
     category TEXT CHECK (category IN ('failure', 'correction', 'insight', 'preference', 'convention', 'tool-quirk')),
     content TEXT NOT NULL,
@@ -108,9 +111,11 @@ export const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_messages_session_id ON messages(session_id);
   CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON messages(timestamp);
   CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project);
+  CREATE INDEX IF NOT EXISTS idx_memories_workspace_id ON memories(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_memories_target ON memories(target);
   CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
   CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project);
+  CREATE INDEX IF NOT EXISTS idx_sessions_workspace_id ON sessions(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at);
   CREATE INDEX IF NOT EXISTS idx_session_files_session_id ON session_files(session_id);
 `;
