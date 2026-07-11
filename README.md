@@ -53,6 +53,33 @@ pi install git:github.com/ShikangHou/pi-context-memory
 /learn-memory-tool
 ```
 
+## v0.8 trusted recall
+
+v0.8 validates every memory boundary, isolates SQLite by stable Workspace ID, reconciles Markdown and SQLite, and adds explainable budgeted recall. Automatic recall remains disabled by default.
+
+```json
+{
+  "autoRecallEnabled": false,
+  "autoRecallMode": "off",
+  "autoRecallTopK": 6,
+  "autoRecallBudgetChars": 6000,
+  "autoRecallMaxEntryChars": 1500,
+  "autoRecallMaxTokens": 1500
+}
+```
+
+Use `suggest` to evaluate traces without injection. Enable `auto` or `debug` only as an explicit opt-in after running `/memory-doctor`. Inspect the last decision with `/memory-why` or `/memory-debug-last`, and check rollout state with `/memory-status`.
+
+Repo-local private/runtime data should be ignored:
+
+```gitignore
+.pi/private/
+.pi/runtime/
+.pi/*.db
+```
+
+Whether `.pi/shared/` is committed is always an explicit user decision. See [v0.8 security](docs/0.8/SECURITY.md), [configuration](docs/0.8/CONFIGURATION.md), and [evaluation](docs/0.8/EVALUATION.md).
+
 ## Maintenance Status
 
 This repository tracks upstream `pi-hermes-memory` while preserving repo-local Workspace Memory, Workspace Skills, Knowledge routing, and migration safety.

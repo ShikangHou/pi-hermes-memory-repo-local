@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0-rc.1] - 2026-07-12
+
+### Added
+
+- Stable Workspace identity, unified validation/quarantine, serialized writes, stable memory IDs, and Markdown/SQLite reconciliation.
+- Idempotent observation checkpoints, checkpoint-bounded extraction, and two-phase compaction metadata.
+- Deterministic routing, transparent ranking, budget packing, `off`/`suggest`/`auto`/`debug` modes, Recall Trace, and `/memory-why` diagnostics.
+
+### Security
+
+- Automatic recall remains disabled by default and validates retrieved content before prompt injection.
+- Wrong-Workspace, quarantined, superseded, and expired candidates are excluded before packing.
+
 ## [0.7.22] - 2026-06-28
 
 ### Fixed
