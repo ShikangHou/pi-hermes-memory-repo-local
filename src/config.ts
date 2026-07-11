@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { MemoryConfig, MemoryOverflowStrategy, ProjectMemoryMode, ReviewTransport, SessionSearchVariant, ThinkingLevel } from "./types.js";
+import type { AutoRecallMode, MemoryConfig, MemoryOverflowStrategy, ProjectMemoryMode, ReviewTransport, SessionSearchVariant, ThinkingLevel } from "./types.js";
 import {
   DEFAULT_MEMORY_CHAR_LIMIT,
   DEFAULT_USER_CHAR_LIMIT,
@@ -26,6 +26,7 @@ const SESSION_SEARCH_VARIANTS: readonly SessionSearchVariant[] = ["legacy", "anc
 const REVIEW_TRANSPORTS: readonly ReviewTransport[] = ["direct", "subprocess"];
 const THINKING_LEVELS: readonly ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
 const PROJECT_MEMORY_MODES: readonly ProjectMemoryMode[] = ["central", "repo-local"];
+const AUTO_RECALL_MODES: readonly AutoRecallMode[] = ["off", "suggest", "auto", "debug"];
 
 function isReviewTransport(value: unknown): value is ReviewTransport {
   return typeof value === "string" && REVIEW_TRANSPORTS.includes(value as ReviewTransport);
@@ -45,6 +46,9 @@ function isThinkingLevel(value: unknown): value is ThinkingLevel {
 
 function isProjectMemoryMode(value: unknown): value is ProjectMemoryMode {
   return typeof value === "string" && PROJECT_MEMORY_MODES.includes(value as ProjectMemoryMode);
+}
+function isAutoRecallMode(value: unknown): value is AutoRecallMode {
+  return typeof value === "string" && AUTO_RECALL_MODES.includes(value as AutoRecallMode);
 }
 
 function normalizeProjectMemoryDirName(value: unknown): string | null {
@@ -81,6 +85,8 @@ const DEFAULT_CONFIG: MemoryConfig = {
   autoRecallBudgetChars: DEFAULT_AUTO_RECALL_BUDGET_CHARS,
   autoRecallMaxEntryChars: DEFAULT_AUTO_RECALL_MAX_ENTRY_CHARS,
   autoRecallMaxTokens: DEFAULT_AUTO_RECALL_MAX_TOKENS,
+  autoRecallMode: "off",
+  autoRecallEnabled: false,
   projectsMemoryDir: DEFAULT_PROJECTS_MEMORY_DIR,
   projectMemoryMode: "repo-local",
   projectMemoryDirName: ".pi",
@@ -147,6 +153,9 @@ export function loadConfig(configPath = DEFAULT_CONFIG_PATH): MemoryConfig {
       if (isNonNegativeNumber(parsed.autoRecallBudgetChars)) config.autoRecallBudgetChars = parsed.autoRecallBudgetChars;
       if (isNonNegativeNumber(parsed.autoRecallMaxEntryChars)) config.autoRecallMaxEntryChars = parsed.autoRecallMaxEntryChars;
       if (isNonNegativeNumber(parsed.autoRecallMaxTokens)) config.autoRecallMaxTokens = parsed.autoRecallMaxTokens;
+      if (isAutoRecallMode(parsed.autoRecallMode)) config.autoRecallMode = parsed.autoRecallMode;
+      if (typeof parsed.autoRecallEnabled === "boolean") config.autoRecallEnabled = parsed.autoRecallEnabled;
+      if (config.autoRecallEnabled === false) config.autoRecallMode = "off";
       if (typeof parsed.projectCharLimit === "number") config.projectCharLimit = parsed.projectCharLimit;
       if (typeof parsed.memoryDir === "string") {
         const normalizedMemoryDir = normalizeConfiguredMemoryDir(parsed.memoryDir);

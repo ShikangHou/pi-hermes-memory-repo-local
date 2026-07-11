@@ -60,6 +60,7 @@ import { MemoryQuarantine } from "./security/memory-quarantine.js";
 import { registerQuarantineCommands } from "./handlers/quarantine-command.js";
 import { registerMemoryDoctorCommands } from "./handlers/memory-doctor.js";
 import { setupObservationCheckpoints } from "./handlers/observation-checkpoint.js";
+import { setupAutomaticRecall } from "./handlers/automatic-recall.js";
 
 type ProjectDiscoveryConfig = Pick<MemoryConfig, "projectMemoryMode" | "projectsMemoryDir" | "projectMemoryDirName">;
 
@@ -226,6 +227,7 @@ export default function (pi: ExtensionAPI) {
       };
     }
   });
+  setupAutomaticRecall(pi, dbManager, config, async (cwd) => (await workspaceContextProvider.refresh(cwd))?.id ?? null);
 
   // ── 3. Register the memory tool (with project store + SQLite sync) ──
   registerMemoryTool(

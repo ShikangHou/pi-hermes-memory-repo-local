@@ -13,6 +13,7 @@ export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhi
 export type ReviewTransport = "direct" | "subprocess";
 
 export type ProjectMemoryMode = "central" | "repo-local";
+export type AutoRecallMode = "off" | "suggest" | "auto" | "debug";
 
 export interface SessionSearchConfig {
   /** Session search implementation variant. Default: legacy */
@@ -94,6 +95,10 @@ export interface MemoryConfig {
   autoRecallMaxEntryChars?: number;
   /** Hard estimated-token cap. Default: 1500 */
   autoRecallMaxTokens?: number;
+  /** Automatic recall rollout mode. Default: off */
+  autoRecallMode?: AutoRecallMode;
+  /** Legacy convenience switch; false forces off. Default: false */
+  autoRecallEnabled?: boolean;
 }
 
 export type MemoryCategory =

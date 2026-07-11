@@ -96,6 +96,8 @@ export const SCHEMA_SQL = `
     corrected_to TEXT,
     created DATE NOT NULL,
     last_referenced DATE NOT NULL
+    ,last_accessed_at TEXT
+    ,access_count INTEGER NOT NULL DEFAULT 0
   );
 
   -- FTS5 index for memory search

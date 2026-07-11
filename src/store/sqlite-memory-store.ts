@@ -745,6 +745,14 @@ export function searchMemories(
   return runSearch(fallbackQuery);
 }
 
+export function recordMemoryAccess(dbManager: DatabaseManager, ids: number[], accessedAt = new Date()): void {
+  const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+  if (unique.length === 0) return;
+  const placeholders = unique.map(() => '?').join(', ');
+  dbManager.getDb().prepare(`UPDATE memories SET last_accessed_at = ?, access_count = access_count + 1 WHERE id IN (${placeholders})`)
+    .run(accessedAt.toISOString(), ...unique);
+}
+
 /**
  * Get all memories, optionally filtered.
  */

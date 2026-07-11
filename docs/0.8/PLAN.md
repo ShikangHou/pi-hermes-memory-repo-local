@@ -484,6 +484,8 @@ Output:
 
 ### Epic 5.1: Context-Hook Automatic Retrieval
 
+Status: [x] off/suggest/auto/debug modes implemented; default remains off and auto is explicit opt-in.
+
 Configuration:
 
 ```json
@@ -511,6 +513,8 @@ Rollout order:
 Keep `memory_search` for model-driven follow-up searches.
 
 ### Epic 5.2: Recall Trace
+
+Status: [x] recall decisions, candidates, exclusions, budgets, latency, and diagnostic commands implemented.
 
 Add:
 
@@ -548,6 +552,8 @@ Show:
 
 ### Epic 5.3: Real Access Statistics
 
+Status: [x] access timestamp and count update only for selected automatic injection results.
+
 Update the following only when a memory is selected for injection or explicitly read:
 
 - `last_accessed_at`.
@@ -557,11 +563,11 @@ Do not display synchronization time as "Last used".
 
 ### Acceptance Criteria
 
-- `/memory-why` explains the most recent retrieval.
-- Retrieval failure never blocks the model call.
-- A router skip injects no empty memory block.
-- Retrieval latency is measured.
-- Automatic retrieval can be disabled with one setting.
+- [x] `/memory-why` explains the most recent retrieval.
+- [x] Retrieval failure never blocks the model call.
+- [x] A router skip injects no empty memory block.
+- [x] Retrieval latency is measured.
+- [x] Automatic retrieval can be disabled with one setting.
 
 ---
 
