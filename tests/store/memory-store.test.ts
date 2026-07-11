@@ -148,6 +148,7 @@ describe("MemoryStore", { concurrency: 1 }, () => {
 
       const raw = await readRaw(memoryPath);
       assert.ok(raw.includes(`${TEST_MARKER} project uses pnpm`));
+      assert.match(raw, /<!-- id=mem_[^,]+, created=\d{4}-\d{2}-\d{2}, updated=\d{4}-\d{2}-\d{2}, last=\d{4}-\d{2}-\d{2} -->/);
     });
 
     it("no-ops on duplicate entry and returns message", async () => {
@@ -434,6 +435,21 @@ describe("MemoryStore", { concurrency: 1 }, () => {
   // ─── replace() tests ───
 
   describe("replace()", () => {
+    it("preserves a stable memory ID while updating content", async () => {
+      const store = new MemoryStore(makeConfig());
+      await store.loadFromDisk();
+      await store.add("memory", `${TEST_MARKER} before uid replacement`);
+      const before = await readRaw(memoryPath);
+      const uid = before.match(/id=(mem_[^,]+)/)?.[1];
+      assert.ok(uid);
+
+      const result = await store.replace("memory", "before uid replacement", `${TEST_MARKER} after uid replacement`);
+      assert.ok(result.success);
+      const after = await readRaw(memoryPath);
+      assert.match(after, new RegExp(`id=${uid},`));
+      assert.ok(after.includes("after uid replacement"));
+    });
+
     it("updates entry in file", async () => {
       const store = new MemoryStore(makeConfig());
       await store.loadFromDisk();

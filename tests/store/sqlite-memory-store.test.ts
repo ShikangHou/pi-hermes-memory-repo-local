@@ -74,6 +74,31 @@ describe('sqlite-memory-store', () => {
       assert.strictEqual(getMemories(dbManager).length, 1);
     });
 
+    it('updates an existing row by stable memory UID when content changes', () => {
+      const first = syncMemoryEntry(dbManager, {
+        memoryUid: 'mem_stable-test',
+        content: 'original content',
+        target: 'memory',
+        sourceFile: '/tmp/MEMORY.md',
+        sourceHash: 'hash-before',
+      });
+      const second = syncMemoryEntry(dbManager, {
+        memoryUid: 'mem_stable-test',
+        content: 'updated content',
+        target: 'memory',
+        sourceFile: '/tmp/MEMORY.md',
+        sourceHash: 'hash-after',
+      });
+
+      assert.strictEqual(first.action, 'inserted');
+      assert.strictEqual(second.action, 'existing');
+      assert.strictEqual(second.entry.id, first.entry.id);
+      assert.strictEqual(second.entry.content, 'updated content');
+      assert.strictEqual(second.entry.memoryUid, 'mem_stable-test');
+      assert.strictEqual(second.entry.sourceHash, 'hash-after');
+      assert.strictEqual(getMemories(dbManager).length, 1);
+    });
+
     it('stores project-scoped memory with project name', () => {
       syncMemoryEntry(dbManager, {
         content: 'uses Prisma',
@@ -139,6 +164,16 @@ describe('sqlite-memory-store', () => {
       assert.strictEqual(parsed.failureReason, 'npm install rewrote lockfile');
       assert.strictEqual(parsed.created, '2026-05-08');
       assert.strictEqual(parsed.lastReferenced, '2026-05-09');
+    });
+
+    it('parses stable IDs from current Markdown metadata', () => {
+      const parsed = parseMarkdownMemoryEntry(
+        'use pnpm <!-- id=mem_parse-test, created=2026-05-08, updated=2026-05-10, last=2026-05-11 -->',
+        'memory',
+      );
+      assert.strictEqual(parsed.memoryUid, 'mem_parse-test');
+      assert.strictEqual(parsed.created, '2026-05-08');
+      assert.strictEqual(parsed.lastReferenced, '2026-05-11');
     });
   });
 

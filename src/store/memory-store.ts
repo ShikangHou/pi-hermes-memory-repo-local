@@ -14,6 +14,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
 import { validateMemoryContent, type MemoryValidationOptions } from "../security/memory-validation.js";
 import type { MemoryQuarantine } from "../security/memory-quarantine.js";
 import { normalizeMemoryLookupText } from "./memory-lookup.js";
@@ -104,7 +105,16 @@ export class MemoryStore {
 
   private charCount(target: "memory" | "user" | "failure"): number {
     const entries = this.entriesFor(target);
-    return entries.length ? entries.join(ENTRY_DELIMITER).length : 0;
+    return this.quotaLength(entries);
+  }
+
+  /** Keep internal stable-ID metadata from reducing the user-visible memory quota. */
+  private quotaLength(entries: string[]): number {
+    if (entries.length === 0) return 0;
+    return entries.map((entry) => {
+      const decoded = this.decodeEntry(entry);
+      return `${decoded.text} <!-- created=${decoded.created}, last=${decoded.lastReferenced} -->`;
+    }).join(ENTRY_DELIMITER).length;
   }
 
   private memoryOverflowStrategy(): MemoryOverflowStrategy {
@@ -187,9 +197,9 @@ export class MemoryStore {
 
     // Encode metadata: both dates = today
     const today = new Date().toISOString().split("T")[0];
-    const encoded = this.encodeEntry(content, today, today);
+    const encoded = this.encodeEntry(content, `mem_${randomUUID()}`, today, today, today);
 
-    const newTotal = [...entries, encoded].join(ENTRY_DELIMITER).length;
+    const newTotal = this.quotaLength([...entries, encoded]);
     if (newTotal > limit) {
       const strategy = this.memoryOverflowStrategy();
 
@@ -228,14 +238,14 @@ export class MemoryStore {
     contentLength: number,
     limit: number,
   ): Promise<MemoryResult> {
-    if (encoded.length > limit) {
+    if (this.quotaLength([encoded]) > limit) {
       return this.memoryFullError(target, contentLength);
     }
 
     const remaining = [...entries];
     const evictedEntries: string[] = [];
 
-    while ([...remaining, encoded].join(ENTRY_DELIMITER).length > limit && remaining.length > 0) {
+    while (this.quotaLength([...remaining, encoded]) > limit && remaining.length > 0) {
       const evicted = remaining.shift()!;
       evictedEntries.push(this.stripMetadata(evicted));
     }
@@ -292,11 +302,17 @@ export class MemoryStore {
     // Preserve original created date, update last_referenced to today
     const decoded = this.decodeEntry(matches[0]);
     const today = new Date().toISOString().split("T")[0];
-    const encoded = this.encodeEntry(newContent, decoded.created, today);
+    const encoded = this.encodeEntry(
+      newContent,
+      decoded.memoryUid ?? `mem_${randomUUID()}`,
+      decoded.created,
+      today,
+      today,
+    );
 
     const testEntries = [...entries];
     testEntries[idx] = encoded;
-    const newTotal = testEntries.join(ENTRY_DELIMITER).length;
+    const newTotal = this.quotaLength(testEntries);
 
     if (newTotal > this.charLimit(target)) {
       return {
@@ -396,22 +412,37 @@ export class MemoryStore {
    * Encode metadata (created, lastReferenced) as an HTML comment appended to entry text.
    * The comment is invisible in markdown and transparent to the § delimiter.
    */
-  private encodeEntry(text: string, created: string, lastReferenced: string): string {
-    return `${text} <!-- created=${created}, last=${lastReferenced} -->`;
+  private encodeEntry(text: string, memoryUid: string, created: string, updated: string, lastReferenced: string): string {
+    return `${text} <!-- id=${memoryUid}, created=${created}, updated=${updated}, last=${lastReferenced} -->`;
   }
 
   /**
    * Decode entry text, extracting metadata if present.
    * Falls back to today's date for legacy entries without metadata.
    */
-  private decodeEntry(raw: string): { text: string; created: string; lastReferenced: string } {
-    const match = raw.match(/^(.*?)\s*<!--\s*created=([^,]+),\s*last=([^>]+)\s*-->\s*$/);
-    if (match) {
-      return { text: match[1].trim(), created: match[2].trim(), lastReferenced: match[3].trim() };
+  private decodeEntry(raw: string): { text: string; memoryUid?: string; created: string; updated: string; lastReferenced: string } {
+    const current = raw.match(/^(.*?)\s*<!--\s*id=([^,]+),\s*created=([^,]+),\s*updated=([^,]+),\s*last=([^>]+)\s*-->\s*$/);
+    if (current) {
+      return {
+        text: current[1].trim(),
+        memoryUid: current[2].trim(),
+        created: current[3].trim(),
+        updated: current[4].trim(),
+        lastReferenced: current[5].trim(),
+      };
+    }
+    const legacy = raw.match(/^(.*?)\s*<!--\s*created=([^,]+),\s*last=([^>]+)\s*-->\s*$/);
+    if (legacy) {
+      return {
+        text: legacy[1].trim(),
+        created: legacy[2].trim(),
+        updated: legacy[2].trim(),
+        lastReferenced: legacy[3].trim(),
+      };
     }
     // Legacy entry without metadata — use today as default
     const today = new Date().toISOString().split("T")[0];
-    return { text: raw.trim(), created: today, lastReferenced: today };
+    return { text: raw.trim(), created: today, updated: today, lastReferenced: today };
   }
 
   /** Strip metadata comment from entry text for display. */

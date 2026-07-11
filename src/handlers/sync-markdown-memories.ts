@@ -5,6 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 import { DatabaseManager } from '../store/db.js';
 import {
@@ -39,6 +40,7 @@ function importEntries(
   project: string | null = null,
   workspaceId?: string | null,
   workspaceName?: string | null,
+  sourceFile?: string,
   quarantine?: MemoryQuarantine,
 ): void {
   for (const rawEntry of entries) {
@@ -61,6 +63,8 @@ function importEntries(
         continue;
       }
       const parsed = parseMarkdownMemoryEntry(validation.normalizedContent, target, project);
+      parsed.sourceFile = sourceFile;
+      parsed.sourceHash = createHash('sha256').update(validation.normalizedContent).digest('hex');
       if (workspaceId !== undefined) parsed.workspaceId = workspaceId;
       if (workspaceName !== undefined) parsed.workspaceName = workspaceName;
       const result = syncMemoryEntry(dbManager, parsed);
@@ -140,7 +144,7 @@ export function syncMarkdownMemoriesToSqlite(
     if (!fs.existsSync(filePath)) return;
     counters.filesScanned++;
     const entries = readEntries(filePath);
-    importEntries(dbManager, counters, entries, target, project, workspaceId, workspaceName, quarantine);
+    importEntries(dbManager, counters, entries, target, project, workspaceId, workspaceName, filePath, quarantine);
   };
 
   importFile(globalMemoryFile, 'memory');

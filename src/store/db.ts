@@ -451,13 +451,16 @@ export class DatabaseManager {
 
   private copyMemories(source: DatabaseLike, target: DatabaseLike): number {
     const insert = target.prepare(`
-      INSERT OR IGNORE INTO memories (id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT OR IGNORE INTO memories (id, memory_uid, source_file, source_hash, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     let copied = 0;
 
     for (const row of this.readTableRows(source, 'memories', [
       'id',
+      'memory_uid',
+      'source_file',
+      'source_hash',
       'project',
       'workspace_id',
       'workspace_name',
@@ -480,6 +483,9 @@ export class DatabaseManager {
 
       insert.run(
         id,
+        this.nullableString(row.memory_uid),
+        this.nullableString(row.source_file),
+        this.nullableString(row.source_hash),
         this.nullableString(row.project),
         this.nullableString(row.workspace_id),
         this.nullableString(row.workspace_name),
@@ -602,6 +608,8 @@ export class DatabaseManager {
       || msg.includes('memories(category)')
       || msg.includes('no such column: project')
       || msg.includes('no such column: workspace_id')
+      || msg.includes('no such column: memory_uid')
+      || msg.includes('memories(memory_uid)')
       || msg.includes('memories(workspace_id)')
       || msg.includes('sessions(workspace_id)')
       || msg.includes('sessions(project)')
@@ -622,6 +630,9 @@ export class DatabaseManager {
     if (!names.has('project')) {
       db.exec('ALTER TABLE memories ADD COLUMN project TEXT');
     }
+    if (!names.has('memory_uid')) db.exec('ALTER TABLE memories ADD COLUMN memory_uid TEXT');
+    if (!names.has('source_file')) db.exec('ALTER TABLE memories ADD COLUMN source_file TEXT');
+    if (!names.has('source_hash')) db.exec('ALTER TABLE memories ADD COLUMN source_hash TEXT');
     if (!names.has('workspace_id')) {
       db.exec('ALTER TABLE memories ADD COLUMN workspace_id TEXT');
     }
@@ -695,6 +706,9 @@ export class DatabaseManager {
         db.exec(`
           CREATE TABLE memories_new (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            memory_uid TEXT,
+            source_file TEXT,
+            source_hash TEXT,
             project TEXT,
             workspace_id TEXT,
             workspace_name TEXT,
@@ -710,8 +724,8 @@ export class DatabaseManager {
         `);
 
         db.exec(`
-          INSERT INTO memories_new (id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-          SELECT id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
+          INSERT INTO memories_new (id, memory_uid, source_file, source_hash, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+          SELECT id, memory_uid, source_file, source_hash, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
           FROM memories;
         `);
 
@@ -731,6 +745,9 @@ export class DatabaseManager {
       db.exec(`
         CREATE TABLE memories_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          memory_uid TEXT,
+          source_file TEXT,
+          source_hash TEXT,
           project TEXT,
           workspace_id TEXT,
           workspace_name TEXT,
@@ -746,8 +763,8 @@ export class DatabaseManager {
       `);
 
       db.exec(`
-          INSERT INTO memories_new (id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-          SELECT id, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
+          INSERT INTO memories_new (id, memory_uid, source_file, source_hash, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+          SELECT id, memory_uid, source_file, source_hash, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced
           FROM memories;
         `);
 

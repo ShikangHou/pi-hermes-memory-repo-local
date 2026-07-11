@@ -72,6 +72,9 @@ export const SCHEMA_SQL = `
   -- Extended memory entries (beyond MEMORY.md limit)
   CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    memory_uid TEXT,
+    source_file TEXT,
+    source_hash TEXT,
     project TEXT,
     workspace_id TEXT,
     workspace_name TEXT,
@@ -114,6 +117,7 @@ export const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_memories_workspace_id ON memories(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_memories_target ON memories(target);
   CREATE INDEX IF NOT EXISTS idx_memories_category ON memories(category);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_memories_memory_uid ON memories(memory_uid) WHERE memory_uid IS NOT NULL;
   CREATE INDEX IF NOT EXISTS idx_sessions_project ON sessions(project);
   CREATE INDEX IF NOT EXISTS idx_sessions_workspace_id ON sessions(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON sessions(started_at);

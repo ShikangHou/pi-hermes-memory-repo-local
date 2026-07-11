@@ -5,6 +5,9 @@ import type { MemoryCategory } from '../types.js';
 
 const MEMORY_SELECT_COLUMNS = `
   id,
+  memory_uid,
+  source_file,
+  source_hash,
   project,
   workspace_id,
   workspace_name,
@@ -32,6 +35,9 @@ const FAILURE_CATEGORY_SET = new Set<MemoryCategory>([
  */
 export interface SqliteMemoryEntry {
   id: number;
+  memoryUid: string | null;
+  sourceFile: string | null;
+  sourceHash: string | null;
   project: string | null;
   workspaceId: string | null;
   workspaceName: string | null;
@@ -57,6 +63,9 @@ export interface SqliteMemorySyncInput {
   correctedTo?: string | null;
   created?: string | null;
   lastReferenced?: string | null;
+  memoryUid?: string | null;
+  sourceFile?: string | null;
+  sourceHash?: string | null;
 }
 
 export interface SqliteMemorySyncResult {
@@ -99,6 +108,9 @@ function normalizeCategory(value?: MemoryCategory | null): MemoryCategory | null
 
 function mapRow(row: {
   id: number;
+  memory_uid?: string | null;
+  source_file?: string | null;
+  source_hash?: string | null;
   project: string | null;
   workspace_id?: string | null;
   workspace_name?: string | null;
@@ -113,6 +125,9 @@ function mapRow(row: {
 }): SqliteMemoryEntry {
   return {
     id: row.id,
+    memoryUid: row.memory_uid ?? null,
+    sourceFile: row.source_file ?? null,
+    sourceHash: row.source_hash ?? null,
     project: row.project,
     workspaceId: row.workspace_id ?? null,
     workspaceName: row.workspace_name ?? null,
@@ -203,13 +218,22 @@ function escapeLikePattern(text: string): string {
   return text.replace(/[\\%_]/g, '\\$&');
 }
 
-function parseMetadataComment(raw: string): { text: string; created: string; lastReferenced: string } {
-  const match = raw.match(/^(.*?)\s*<!--\s*created=([^,]+),\s*last=([^>]+)\s*-->\s*$/);
-  if (match) {
+function parseMetadataComment(raw: string): { text: string; memoryUid?: string; created: string; lastReferenced: string } {
+  const current = raw.match(/^(.*?)\s*<!--\s*id=([^,]+),\s*created=([^,]+),\s*updated=([^,]+),\s*last=([^>]+)\s*-->\s*$/);
+  if (current) {
     return {
-      text: match[1].trim(),
-      created: match[2].trim(),
-      lastReferenced: match[3].trim(),
+      text: current[1].trim(),
+      memoryUid: current[2].trim(),
+      created: current[3].trim(),
+      lastReferenced: current[5].trim(),
+    };
+  }
+  const legacy = raw.match(/^(.*?)\s*<!--\s*created=([^,]+),\s*last=([^>]+)\s*-->\s*$/);
+  if (legacy) {
+    return {
+      text: legacy[1].trim(),
+      created: legacy[2].trim(),
+      lastReferenced: legacy[3].trim(),
     };
   }
 
@@ -237,16 +261,22 @@ export function addMemory(
   lastReferenced = created,
   workspaceId: string | null = null,
   workspaceName: string | null = null,
+  memoryUid: string | null = null,
+  sourceFile: string | null = null,
+  sourceHash: string | null = null,
 ): SqliteMemoryEntry {
   const db = dbManager.getDb();
 
   const result = db.prepare(`
-    INSERT INTO memories (project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(project, workspaceId, workspaceName, target, category, content, failureReason, toolState, correctedTo, created, lastReferenced);
+    INSERT INTO memories (memory_uid, source_file, source_hash, project, workspace_id, workspace_name, target, category, content, failure_reason, tool_state, corrected_to, created, last_referenced)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(memoryUid, sourceFile, sourceHash, project, workspaceId, workspaceName, target, category, content, failureReason, toolState, correctedTo, created, lastReferenced);
 
   return {
     id: Number(result.lastInsertRowid),
+    memoryUid,
+    sourceFile,
+    sourceHash,
     project,
     workspaceId,
     workspaceName,
@@ -293,7 +323,7 @@ export function parseMarkdownMemoryEntry(
   target: 'memory' | 'user' | 'failure',
   project: string | null = null,
 ): ParsedMarkdownMemoryEntry {
-  const { text, created, lastReferenced } = parseMetadataComment(rawEntry);
+  const { text, memoryUid, created, lastReferenced } = parseMetadataComment(rawEntry);
   const parsedProject = normalizeNullable(project);
 
   if (target !== 'failure') {
@@ -303,6 +333,7 @@ export function parseMarkdownMemoryEntry(
       project: parsedProject,
       created,
       lastReferenced,
+      memoryUid,
     };
   }
 
@@ -341,6 +372,7 @@ export function parseMarkdownMemoryEntry(
     correctedTo,
     created,
     lastReferenced,
+    memoryUid,
   };
 }
 
@@ -363,17 +395,19 @@ export function syncMemoryEntry(
   const correctedTo = normalizeNullable(input.correctedTo);
   const created = input.created?.trim() || today();
   const lastReferenced = input.lastReferenced?.trim() || created;
+  const memoryUid = normalizeNullable(input.memoryUid);
+  const sourceFile = normalizeNullable(input.sourceFile);
+  const sourceHash = normalizeNullable(input.sourceHash);
 
   const params: unknown[] = [];
-  const conditions = buildScopeConditions(
-    params,
-    input.target,
-    project,
-    category,
-    input.workspaceId === undefined ? undefined : workspaceId,
-  );
-  conditions.push('content = ?');
-  params.push(content);
+  const conditions = memoryUid
+    ? ['memory_uid = ?']
+    : buildScopeConditions(params, input.target, project, category, input.workspaceId === undefined ? undefined : workspaceId);
+  if (memoryUid) params.push(memoryUid);
+  else {
+    conditions.push('content = ?');
+    params.push(content);
+  }
 
   const existing = db.prepare(`
     SELECT ${MEMORY_SELECT_COLUMNS}
@@ -410,6 +444,9 @@ export function syncMemoryEntry(
         lastReferenced,
         workspaceId,
         workspaceName,
+        memoryUid,
+        sourceFile,
+        sourceHash,
       ),
     };
   }
@@ -423,15 +460,25 @@ export function syncMemoryEntry(
 
   db.prepare(`
     UPDATE memories
-    SET category = ?, failure_reason = ?, tool_state = ?, corrected_to = ?, created = ?, last_referenced = ?
+    SET content = ?, category = ?, failure_reason = ?, tool_state = ?, corrected_to = ?, created = ?, last_referenced = ?,
+        memory_uid = COALESCE(memory_uid, ?), source_file = COALESCE(?, source_file), source_hash = COALESCE(?, source_hash),
+        project = ?, workspace_id = ?, workspace_name = ?, target = ?
     WHERE id = ?
   `).run(
+    content,
     updatedCategory,
     updatedFailureReason,
     updatedToolState,
     updatedCorrectedTo,
     updatedCreated,
     updatedLastReferenced,
+    memoryUid,
+    sourceFile,
+    sourceHash,
+    project,
+    workspaceId,
+    workspaceName,
+    input.target,
     existing.id,
   );
 

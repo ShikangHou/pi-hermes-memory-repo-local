@@ -691,7 +691,8 @@ Implement in this order:
 5. [x] Add unified validation and quarantine to MemoryStore writes, every Markdown import path, and SQLite recall; expose quarantine list/delete commands.
 6. [x] Serialize MemoryStore add/failure/replace/remove mutations with a FIFO queue.
 7. [x] Add 100-concurrent-write and cross-Workspace isolation tests.
-8. Implement `/memory-doctor`.
-9. Only then begin Router, Ranking, and automatic retrieval.
+8. [x] Add stable Memory IDs to Markdown and SQLite, including legacy metadata parsing, source provenance, and ID-first synchronization.
+9. Implement Markdown/SQLite reconciliation and `/memory-doctor`.
+10. Only then begin Router, Ranking, and automatic retrieval.
 
-The first eight tasks establish the safety and consistency foundation required before automatic retrieval can be enabled.
+The first nine tasks establish the safety and consistency foundation required before automatic retrieval can be enabled.

@@ -119,8 +119,12 @@ describe('DatabaseManager', () => {
 
       assert.ok(memoryColumns.some((column) => column.name === 'workspace_id'));
       assert.ok(memoryColumns.some((column) => column.name === 'workspace_name'));
+      assert.ok(memoryColumns.some((column) => column.name === 'memory_uid'));
+      assert.ok(memoryColumns.some((column) => column.name === 'source_file'));
+      assert.ok(memoryColumns.some((column) => column.name === 'source_hash'));
       assert.ok(sessionColumns.some((column) => column.name === 'workspace_id'));
       assert.ok(indexes.some((index) => index.name === 'idx_memories_workspace_id'));
+      assert.ok(indexes.some((index) => index.name === 'idx_memories_memory_uid'));
       assert.ok(indexes.some((index) => index.name === 'idx_sessions_workspace_id'));
     });
 
