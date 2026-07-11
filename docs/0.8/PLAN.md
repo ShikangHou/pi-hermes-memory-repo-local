@@ -327,6 +327,8 @@ Archiving must not depend on successful LLM extraction.
 
 ### Epic 3.2: Pi Custom-Entry Checkpoints
 
+Status: [~] checkpoint schema, recovery, per-turn cursor, and compaction boundary entries implemented; extraction-range consumption remains pending.
+
 Use Pi custom entries for lightweight cursors:
 
 ```ts
