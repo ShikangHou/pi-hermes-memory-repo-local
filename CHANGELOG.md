@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-12
+
+### Added
+
+- Privacy-aware Workspace migration with validation, hash verification, conflict preservation, and safe rollback.
+- Retrieval evaluation and zero-tolerance release gates for Workspace leakage, dangerous injection, concurrent-write loss, duplicate observation, and Markdown/SQLite divergence.
+- Supported CI coverage for Node 20 and 22 on Linux, macOS, and Windows.
+
+### Changed
+
+- Promoted the trusted, explainable Workspace-memory pipeline from release candidate to stable while keeping automatic recall disabled by default.
+
 ## [0.8.0-rc.1] - 2026-07-12
 
 ### Added

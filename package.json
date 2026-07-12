@@ -1,6 +1,6 @@
 {
   "name": "pi-hermes-memory",
-  "version": "0.8.0-rc.1",
+  "version": "0.8.0",
   "description": "Pi Context Memory: repo-local Workspace context distribution of pi-hermes-memory for Pi with Memory, Knowledge routing, Workspace Skills, session search, and upstream-compatible maintenance.",
   "type": "module",
   "main": "src/index.ts",
