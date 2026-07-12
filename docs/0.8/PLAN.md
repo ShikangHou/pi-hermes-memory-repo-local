@@ -614,7 +614,7 @@ Migration must:
 
 ### Epic 6.2: Evaluation Suite
 
-Status: [~] required regression scenarios are automated and local results are recorded; remote cross-platform verification is in progress.
+Status: [x] required regression scenarios, metric calculation, zero-tolerance safety gates, and local results are automated and recorded.
 
 Required scenarios:
 
