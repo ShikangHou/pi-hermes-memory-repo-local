@@ -9,6 +9,7 @@ export interface RetrievalEvaluationCase {
   workspaceLeakage: number;
   dangerousInjection: number;
   duplicateObservations: number;
+  concurrentWriteLosses: number;
   markdownSqliteDivergence: number;
 }
 
@@ -17,6 +18,7 @@ export interface MemoryEvaluationMetrics {
   workspaceLeakageRate: number;
   dangerousInjectionRate: number;
   duplicateObservationRate: number;
+  concurrentWriteLossRate: number;
   recallPrecisionAtK: number;
   routerFalsePositiveRate: number;
   routerFalseNegativeRate: number;
@@ -48,6 +50,7 @@ export function evaluateMemoryRetrieval(cases: RetrievalEvaluationCase[]): Memor
     workspaceLeakageRate: ratio(cases.reduce((sum, item) => sum + item.workspaceLeakage, 0), total),
     dangerousInjectionRate: ratio(cases.reduce((sum, item) => sum + item.dangerousInjection, 0), total),
     duplicateObservationRate: ratio(cases.reduce((sum, item) => sum + item.duplicateObservations, 0), total),
+    concurrentWriteLossRate: ratio(cases.reduce((sum, item) => sum + item.concurrentWriteLosses, 0), total),
     recallPrecisionAtK: ratio(precision.reduce((sum, value) => sum + value, 0), total),
     routerFalsePositiveRate: ratio(cases.filter((item) => !item.expectedRetrieve && item.actualRetrieve).length, negatives),
     routerFalseNegativeRate: ratio(cases.filter((item) => item.expectedRetrieve && !item.actualRetrieve).length, positives),
@@ -64,6 +67,7 @@ export function assertReleaseSafety(metrics: MemoryEvaluationMetrics): string[] 
   if (metrics.workspaceLeakageRate !== 0) failures.push('Workspace leakage rate must be zero');
   if (metrics.dangerousInjectionRate !== 0) failures.push('Dangerous automatic-injection rate must be zero');
   if (metrics.duplicateObservationRate !== 0) failures.push('Duplicate observation rate must be zero');
+  if (metrics.concurrentWriteLossRate !== 0) failures.push('Concurrent-write loss rate must be zero');
   if (metrics.markdownSqliteDivergenceCount !== 0) failures.push('Markdown/SQLite divergence must be zero');
   return failures;
 }

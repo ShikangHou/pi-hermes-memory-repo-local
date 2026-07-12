@@ -6,7 +6,7 @@ describe('v0.8 retrieval evaluation metrics', () => {
   const safeCase: RetrievalEvaluationCase = {
     expectedRetrieve: true, actualRetrieve: true, expectedIds: ['correction'], selectedIds: ['correction'],
     recalledChars: 400, recalledTokens: 100, latencyMs: 8, workspaceLeakage: 0, dangerousInjection: 0,
-    duplicateObservations: 0, markdownSqliteDivergence: 0,
+    duplicateObservations: 0, concurrentWriteLosses: 0, markdownSqliteDivergence: 0,
   };
   it('computes precision, router rates, budgets, latency percentiles, and zero-harm gates', () => {
     const metrics = evaluateMemoryRetrieval([
@@ -22,7 +22,7 @@ describe('v0.8 retrieval evaluation metrics', () => {
     assert.deepStrictEqual(assertReleaseSafety(metrics), []);
   });
   it('fails release gates for leakage, dangerous injection, duplicate observation, or divergence', () => {
-    const metrics = evaluateMemoryRetrieval([{ ...safeCase, workspaceLeakage: 1, dangerousInjection: 1, duplicateObservations: 1, markdownSqliteDivergence: 1 }]);
-    assert.equal(assertReleaseSafety(metrics).length, 4);
+    const metrics = evaluateMemoryRetrieval([{ ...safeCase, workspaceLeakage: 1, dangerousInjection: 1, duplicateObservations: 1, concurrentWriteLosses: 1, markdownSqliteDivergence: 1 }]);
+    assert.equal(assertReleaseSafety(metrics).length, 5);
   });
 });

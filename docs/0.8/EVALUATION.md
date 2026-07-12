@@ -10,6 +10,6 @@ Local verification on 2026-07-12 used Node 22.23.1 on macOS:
 
 Covered regression scenarios include same-named Workspace isolation, malicious Markdown quarantine, manual reconciliation, 100 concurrent writes, correction/failure priority, Global/Workspace quota sharing, generic router skips, strict budgets, compaction deduplication, and SQLite corruption recovery.
 
-`evaluateMemoryRetrieval()` reports Workspace leakage, dangerous injection, duplicate observations, precision@K, router false-positive/false-negative rates, average characters/tokens, P50/P95 latency, and Markdown/SQLite divergence. `assertReleaseSafety()` makes leakage, dangerous injection, duplicate observation, and divergence zero-tolerance release gates.
+`evaluateMemoryRetrieval()` reports Workspace leakage, dangerous injection, concurrent-write loss, duplicate observations, precision@K, router false-positive/false-negative rates, average characters/tokens, P50/P95 latency, and Markdown/SQLite divergence. `assertReleaseSafety()` makes leakage, dangerous injection, concurrent-write loss, duplicate observation, and divergence zero-tolerance release gates.
 
 The CI matrix runs Node 20 and 22 on Linux, macOS, and Windows. Remote CI results are required before promoting this release candidate to stable.
