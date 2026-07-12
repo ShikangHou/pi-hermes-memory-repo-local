@@ -657,7 +657,7 @@ Metrics:
 - [x] Changelog.
 - [x] Version bump.
 - [x] Release candidate.
-- [ ] Stable release.
+- [x] Stable release (GitHub/Git distribution; npm publication is optional).
 
 ---
 

@@ -1,10 +1,25 @@
 # Publishing pi-context-memory
 
+## Supported release channels
+
+The maintained `pi-context-memory` distribution may be released through Git
+alone. A signed `v0.8.0` tag and GitHub Release are sufficient for cloning and
+for Pi's Git installer:
+
+```bash
+git clone --branch v0.8.0 https://github.com/ShikangHou/pi-context-memory.git
+pi install git:github.com/ShikangHou/pi-context-memory
+```
+
+npm publication is an optional additional distribution channel. It requires
+credentials for the existing `pi-hermes-memory` package and is not a
+prerequisite for a Git-only stable release.
+
 The maintained distribution publishes the npm package `pi-hermes-memory`. The
 `pi-package` keyword and `pi.extensions` manifest in `package.json` make the
 published package discoverable by Pi.
 
-## Stable release prerequisites
+## Optional npm release prerequisites
 
 1. Complete the release checklist in `docs/0.8/PLAN.md`.
 2. Keep automatic recall disabled by default.
@@ -91,8 +106,7 @@ Also verify:
 - the package appears on `https://pi.dev/packages`;
 - a clean install loads `src/index.ts` and keeps automatic recall off.
 
-Only after these checks pass should `Stable release` be marked complete in
-`docs/0.8/PLAN.md`.
+These checks are required only when using the optional npm release channel.
 
 ## Release failure handling
 
