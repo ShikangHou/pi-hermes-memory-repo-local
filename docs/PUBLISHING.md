@@ -36,7 +36,7 @@ the intended version must not already exist in the registry.
 
 ## GitHub Actions dry run
 
-Run the `Publish to npm` workflow on the default branch with `dry-run=true`.
+Run the `Publish to npm` workflow on the default branch with `dry_run=true`.
 The workflow repeats installation, type checking, the full test suite, and
 `npm publish --dry-run --access public` in the same environment used for the
 real publication.
@@ -44,7 +44,7 @@ real publication.
 Using GitHub CLI after the workflow has been merged:
 
 ```bash
-gh workflow run publish.yml --ref main -f dry-run=true
+gh workflow run publish.yml --ref main -f dry_run=true
 gh run watch --exit-status
 ```
 
@@ -53,10 +53,10 @@ Inspect the tarball file list and package version before continuing.
 ## Publish
 
 Run the same workflow on the exact merged release commit with
-`dry-run=false`:
+`dry_run=false`:
 
 ```bash
-gh workflow run publish.yml --ref main -f dry-run=false
+gh workflow run publish.yml --ref main -f dry_run=false
 gh run watch --exit-status
 ```
 

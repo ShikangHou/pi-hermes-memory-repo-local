@@ -3,14 +3,14 @@ name: Publish to npm
 on:
   workflow_dispatch:
     inputs:
-      dry-run:
+      dry_run:
         description: "Dry run (skip actual publish)"
         required: false
-        default: "false"
-        type: choice
-        options:
-          - "false"
-          - "true"
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -50,13 +50,11 @@ jobs:
       - run: npm install
 
       - name: Publish
-        if: github.event.inputs.dry-run == 'false'
+        if: ${{ !inputs.dry_run }}
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Dry run
-        if: github.event.inputs.dry-run == 'true'
+        if: ${{ inputs.dry_run }}
         run: npm publish --dry-run --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
